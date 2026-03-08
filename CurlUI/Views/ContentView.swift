@@ -1,4 +1,5 @@
 import SwiftUI
+import CodeViewer
 
 struct ContentView: View {
     @StateObject private var viewModel = RequestViewModel()
@@ -177,9 +178,14 @@ struct ContentView: View {
             Spacer()
 
         case .raw, .binary:
-            TextEditor(text: $viewModel.requestBody)
-                .font(.system(.body, design: .monospaced))
-                .padding(4)
+            CodeViewer(
+                content: $viewModel.requestBody,
+                mode: .json,
+                darkTheme: .monokai,
+                lightTheme: .dawn,
+                isReadOnly: false,
+                fontSize: 13
+            )
 
         case .formData:
             ScrollView {
@@ -206,18 +212,30 @@ struct ContentView: View {
                 Text("Query")
                     .font(.headline)
                     .padding([.horizontal, .top])
-                TextEditor(text: $viewModel.graphQLQuery)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 80)
-                    .padding(.horizontal)
+                CodeViewer(
+                    content: $viewModel.graphQLQuery,
+                    mode: .graphqlschema,
+                    darkTheme: .monokai,
+                    lightTheme: .dawn,
+                    isReadOnly: false,
+                    fontSize: 13
+                )
+                .frame(minHeight: 80)
+                .padding(.horizontal)
 
                 Text("Variables (JSON)")
                     .font(.headline)
                     .padding(.horizontal)
-                TextEditor(text: $viewModel.graphQLVariables)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 50)
-                    .padding([.horizontal, .bottom])
+                CodeViewer(
+                    content: $viewModel.graphQLVariables,
+                    mode: .json,
+                    darkTheme: .monokai,
+                    lightTheme: .dawn,
+                    isReadOnly: false,
+                    fontSize: 13
+                )
+                .frame(minHeight: 50)
+                .padding([.horizontal, .bottom])
             }
         }
     }
@@ -358,13 +376,14 @@ struct ContentView: View {
     }
 
     private func responseBodyView(_ response: APIResponse) -> some View {
-        ScrollView([.horizontal, .vertical]) {
-            Text(response.formattedBody)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        CodeViewer(
+            content: .constant(response.formattedBody),
+            mode: .json,
+            darkTheme: .monokai,
+            lightTheme: .dawn,
+            isReadOnly: true,
+            fontSize: 13
+        )
     }
 
     private func responseHeadersView(_ response: APIResponse) -> some View {

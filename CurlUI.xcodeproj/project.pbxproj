@@ -17,6 +17,7 @@
 		AA000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB000008; };
 		AA000009 /* ParamEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011; };
 		AA000010 /* BodyType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000012; };
+		AA000020 /* CodeViewer in Frameworks */ = {isa = PBXBuildFile; productRef = CC000002 /* CodeViewer */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA000020 /* CodeViewer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +123,9 @@
 			dependencies = (
 			);
 			name = CurlUI;
+			packageProductDependencies = (
+				CC000002 /* CodeViewer */,
+			);
 			productName = CurlUI;
 			productReference = AB000099 /* CurlUI.app */;
 			productType = "com.apple.product-type.application";
@@ -147,6 +152,9 @@
 			productRefGroup = AD000099 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				CC000001 /* XCRemoteSwiftPackageReference "CodeViewer" */,
+			);
 			targets = (
 				AE000001 /* CurlUI */,
 			);
@@ -317,6 +325,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CC000001 /* XCRemoteSwiftPackageReference "CodeViewer" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dwarvesf/CodeViewer";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CC000002 /* CodeViewer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CC000001 /* XCRemoteSwiftPackageReference "CodeViewer" */;
+			productName = CodeViewer;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AE000099 /* Project object */;
 }
