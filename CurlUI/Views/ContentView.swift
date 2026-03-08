@@ -177,7 +177,7 @@ struct ContentView: View {
             }
             Spacer()
 
-        case .raw, .binary:
+        case .raw:
             CodeViewer(
                 content: $viewModel.requestBody,
                 mode: .json,
@@ -186,6 +186,32 @@ struct ContentView: View {
                 isReadOnly: false,
                 fontSize: 13
             )
+
+        case .binary:
+            VStack(spacing: 12) {
+                Spacer()
+                HStack(spacing: 8) {
+                    TextField("File path", text: $viewModel.binaryFilePath)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit {
+                            viewModel.loadBinaryFile(from: viewModel.binaryFilePath)
+                        }
+                    Button("Browse…") {
+                        viewModel.browseBinaryFile()
+                    }
+                }
+                .padding(.horizontal)
+
+                if let data = viewModel.binaryFileData {
+                    Text("\(data.count) bytes loaded")
+                        .foregroundColor(.secondary)
+                        .font(.system(.body, design: .monospaced))
+                } else if !viewModel.binaryFilePath.isEmpty {
+                    Text("Failed to load file")
+                        .foregroundColor(.red)
+                }
+                Spacer()
+            }
 
         case .formData:
             ScrollView {

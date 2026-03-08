@@ -8,7 +8,8 @@ final class NetworkService {
         url: URL,
         method: HTTPMethod,
         headers: [String: String],
-        body: String?
+        body: String?,
+        bodyData: Data? = nil
     ) async throws -> APIResponse {
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
@@ -18,7 +19,12 @@ final class NetworkService {
             request.setValue(value, forHTTPHeaderField: key)
         }
 
-        if let body, !body.isEmpty, method != .GET {
+        if let bodyData, method != .GET {
+            request.httpBody = bodyData
+            if request.value(forHTTPHeaderField: "Content-Type") == nil {
+                request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+            }
+        } else if let body, !body.isEmpty, method != .GET {
             request.httpBody = body.data(using: .utf8)
             if request.value(forHTTPHeaderField: "Content-Type") == nil {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

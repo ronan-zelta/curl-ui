@@ -13,6 +13,8 @@ final class RequestViewModel: ObservableObject {
     @Published var urlEncodedEntries: [HeaderEntry] = [HeaderEntry()]
     @Published var graphQLQuery: String = ""
     @Published var graphQLVariables: String = ""
+    @Published var binaryFilePath: String = ""
+    @Published var binaryFileData: Data?
     @Published var response: APIResponse?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -66,6 +68,22 @@ final class RequestViewModel: ObservableObject {
         if urlEncodedEntries.isEmpty { urlEncodedEntries.append(HeaderEntry()) }
     }
 
+    func browseBinaryFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        if panel.runModal() == .OK, let url = panel.url {
+            binaryFilePath = url.path
+            binaryFileData = try? Data(contentsOf: url)
+        }
+    }
+
+    func loadBinaryFile(from path: String) {
+        let url = URL(fileURLWithPath: path)
+        binaryFileData = try? Data(contentsOf: url)
+    }
+
     private func buildURL() -> URL? {
         let activeParams = params.filter { !$0.key.isEmpty }
         guard var components = URLComponents(string: urlString) else { return nil }
@@ -109,7 +127,7 @@ final class RequestViewModel: ObservableObject {
             guard let data = try? JSONSerialization.data(withJSONObject: dict) else { return nil }
             return String(data: data, encoding: .utf8)
         case .binary:
-            return requestBody.isEmpty ? nil : requestBody
+            return nil
         }
     }
 
@@ -137,6 +155,7 @@ final class RequestViewModel: ObservableObject {
         }
 
         let body = buildBody()
+        let rawBodyData = selectedBodyType == .binary ? binaryFileData : nil
 
         Task {
             do {
@@ -144,7 +163,8 @@ final class RequestViewModel: ObservableObject {
                     url: url,
                     method: selectedMethod,
                     headers: headerDict,
-                    body: body
+                    body: body,
+                    bodyData: rawBodyData
                 )
                 self.response = result
             } catch {
