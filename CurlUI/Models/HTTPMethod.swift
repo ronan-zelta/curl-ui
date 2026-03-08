@@ -8,14 +8,4 @@ enum HTTPMethod: String, CaseIterable, Identifiable {
     case PATCH
 
     var id: String { rawValue }
-
-    var color: String {
-        switch self {
-        case .GET: return "green"
-        case .POST: return "blue"
-        case .PUT: return "orange"
-        case .DELETE: return "red"
-        case .PATCH: return "purple"
-        }
-    }
 }

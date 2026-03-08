@@ -10,13 +10,16 @@
 		AA000001 /* CurlUIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000001; };
 		AA000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000002; };
 		AA000003 /* HTTPMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000003; };
-		AA000004 /* HeaderEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000004; };
+		AA000013 /* KeyValueEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000013; };
 		AA000005 /* APIResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000005; };
 		AA000006 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000006; };
 		AA000007 /* RequestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000007; };
 		AA000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB000008; };
-		AA000009 /* ParamEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011; };
 		AA000010 /* BodyType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000012; };
+		AA000014 /* CurlParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000014; };
+		AA000015 /* BodySerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000015; };
+		AA000016 /* RequestPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000016; };
+		AA000017 /* ResponsePanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000017; };
 		AA000020 /* CodeViewer in Frameworks */ = {isa = PBXBuildFile; productRef = CC000002 /* CodeViewer */; };
 /* End PBXBuildFile section */
 
@@ -24,15 +27,18 @@
 		AB000001 /* CurlUIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurlUIApp.swift; sourceTree = "<group>"; };
 		AB000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AB000003 /* HTTPMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPMethod.swift; sourceTree = "<group>"; };
-		AB000004 /* HeaderEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderEntry.swift; sourceTree = "<group>"; };
+		AB000013 /* KeyValueEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyValueEntry.swift; sourceTree = "<group>"; };
 		AB000005 /* APIResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIResponse.swift; sourceTree = "<group>"; };
 		AB000006 /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
 		AB000007 /* RequestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestViewModel.swift; sourceTree = "<group>"; };
 		AB000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB000010 /* CurlUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CurlUI.entitlements; sourceTree = "<group>"; };
-		AB000011 /* ParamEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParamEntry.swift; sourceTree = "<group>"; };
 		AB000012 /* BodyType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyType.swift; sourceTree = "<group>"; };
+		AB000014 /* CurlParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurlParser.swift; sourceTree = "<group>"; };
+		AB000015 /* BodySerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodySerializer.swift; sourceTree = "<group>"; };
+		AB000016 /* RequestPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestPanelView.swift; sourceTree = "<group>"; };
+		AB000017 /* ResponsePanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponsePanelView.swift; sourceTree = "<group>"; };
 		AB000099 /* CurlUI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CurlUI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -74,9 +80,8 @@
 			isa = PBXGroup;
 			children = (
 				AB000003 /* HTTPMethod.swift */,
-				AB000004 /* HeaderEntry.swift */,
+				AB000013 /* KeyValueEntry.swift */,
 				AB000005 /* APIResponse.swift */,
-				AB000011 /* ParamEntry.swift */,
 				AB000012 /* BodyType.swift */,
 			);
 			path = Models;
@@ -86,6 +91,8 @@
 			isa = PBXGroup;
 			children = (
 				AB000002 /* ContentView.swift */,
+				AB000016 /* RequestPanelView.swift */,
+				AB000017 /* ResponsePanelView.swift */,
 				AB000007 /* RequestViewModel.swift */,
 			);
 			path = Views;
@@ -95,6 +102,8 @@
 			isa = PBXGroup;
 			children = (
 				AB000006 /* NetworkService.swift */,
+				AB000014 /* CurlParser.swift */,
+				AB000015 /* BodySerializer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -180,12 +189,15 @@
 				AA000001 /* CurlUIApp.swift in Sources */,
 				AA000002 /* ContentView.swift in Sources */,
 				AA000003 /* HTTPMethod.swift in Sources */,
-				AA000004 /* HeaderEntry.swift in Sources */,
+				AA000013 /* KeyValueEntry.swift in Sources */,
 				AA000005 /* APIResponse.swift in Sources */,
 				AA000006 /* NetworkService.swift in Sources */,
 				AA000007 /* RequestViewModel.swift in Sources */,
-				AA000009 /* ParamEntry.swift in Sources */,
 				AA000010 /* BodyType.swift in Sources */,
+				AA000014 /* CurlParser.swift in Sources */,
+				AA000015 /* BodySerializer.swift in Sources */,
+				AA000016 /* RequestPanelView.swift in Sources */,
+				AA000017 /* ResponsePanelView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

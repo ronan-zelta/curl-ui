@@ -5,12 +5,12 @@ import SwiftUI
 final class RequestViewModel: ObservableObject {
     @Published var urlString: String = ""
     @Published var selectedMethod: HTTPMethod = .GET
-    @Published var headers: [HeaderEntry] = [HeaderEntry()]
-    @Published var params: [ParamEntry] = [ParamEntry()]
+    @Published var headers: [KeyValueEntry] = [KeyValueEntry()]
+    @Published var params: [KeyValueEntry] = [KeyValueEntry()]
     @Published var requestBody: String = ""
     @Published var selectedBodyType: BodyType = .none
-    @Published var formDataEntries: [HeaderEntry] = [HeaderEntry()]
-    @Published var urlEncodedEntries: [HeaderEntry] = [HeaderEntry()]
+    @Published var formDataEntries: [KeyValueEntry] = [KeyValueEntry()]
+    @Published var urlEncodedEntries: [KeyValueEntry] = [KeyValueEntry()]
     @Published var graphQLQuery: String = ""
     @Published var graphQLVariables: String = ""
     @Published var binaryFilePath: String = ""
@@ -32,41 +32,30 @@ final class RequestViewModel: ObservableObject {
         case headers = "Headers"
     }
 
-    func addHeader() {
-        headers.append(HeaderEntry())
+    // MARK: - Key-Value List Helpers
+
+    private func addEntry(to list: inout [KeyValueEntry]) {
+        list.append(KeyValueEntry())
     }
 
-    func removeHeader(at offsets: IndexSet) {
-        headers.remove(atOffsets: offsets)
-        if headers.isEmpty { headers.append(HeaderEntry()) }
+    private func removeEntry(from list: inout [KeyValueEntry], at offsets: IndexSet) {
+        list.remove(atOffsets: offsets)
+        if list.isEmpty { list.append(KeyValueEntry()) }
     }
 
-    func addParam() {
-        params.append(ParamEntry())
-    }
+    func addHeader() { addEntry(to: &headers) }
+    func removeHeader(at offsets: IndexSet) { removeEntry(from: &headers, at: offsets) }
 
-    func removeParam(at offsets: IndexSet) {
-        params.remove(atOffsets: offsets)
-        if params.isEmpty { params.append(ParamEntry()) }
-    }
+    func addParam() { addEntry(to: &params) }
+    func removeParam(at offsets: IndexSet) { removeEntry(from: &params, at: offsets) }
 
-    func addFormDataEntry() {
-        formDataEntries.append(HeaderEntry())
-    }
+    func addFormDataEntry() { addEntry(to: &formDataEntries) }
+    func removeFormDataEntry(at offsets: IndexSet) { removeEntry(from: &formDataEntries, at: offsets) }
 
-    func removeFormDataEntry(at offsets: IndexSet) {
-        formDataEntries.remove(atOffsets: offsets)
-        if formDataEntries.isEmpty { formDataEntries.append(HeaderEntry()) }
-    }
+    func addUrlEncodedEntry() { addEntry(to: &urlEncodedEntries) }
+    func removeUrlEncodedEntry(at offsets: IndexSet) { removeEntry(from: &urlEncodedEntries, at: offsets) }
 
-    func addUrlEncodedEntry() {
-        urlEncodedEntries.append(HeaderEntry())
-    }
-
-    func removeUrlEncodedEntry(at offsets: IndexSet) {
-        urlEncodedEntries.remove(atOffsets: offsets)
-        if urlEncodedEntries.isEmpty { urlEncodedEntries.append(HeaderEntry()) }
-    }
+    // MARK: - Binary File
 
     func browseBinaryFile() {
         let panel = NSOpenPanel()
@@ -84,200 +73,49 @@ final class RequestViewModel: ObservableObject {
         binaryFileData = try? Data(contentsOf: url)
     }
 
+    // MARK: - Curl Paste Detection
+
     func handleURLChange(_ newValue: String) {
         let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.lowercased().hasPrefix("curl ") else { return }
-        parseCurl(trimmed)
+        applyCurlParse(trimmed)
     }
 
-    private func parseCurl(_ input: String) {
-        let tokens = tokenize(input)
-        guard tokens.first?.lowercased() == "curl" else { return }
+    private func applyCurlParse(_ input: String) {
+        guard let parsed = CurlParser.parse(input) else { return }
 
-        // Reset all fields
         selectedMethod = .GET
-        headers = [HeaderEntry()]
-        params = [ParamEntry()]
+        headers = [KeyValueEntry()]
+        params = [KeyValueEntry()]
         requestBody = ""
         selectedBodyType = .none
-        formDataEntries = [HeaderEntry()]
-        urlEncodedEntries = [HeaderEntry()]
+        formDataEntries = [KeyValueEntry()]
+        urlEncodedEntries = [KeyValueEntry()]
         graphQLQuery = ""
         graphQLVariables = ""
         binaryFilePath = ""
         binaryFileData = nil
 
-        var extractedURL: String?
-        var extractedMethod: String?
-        var extractedHeaders: [(String, String)] = []
-        var extractedBody: String?
-
-        var i = 1
-        while i < tokens.count {
-            let token = tokens[i]
-            switch token {
-            case "-X", "--request":
-                i += 1
-                if i < tokens.count { extractedMethod = tokens[i].uppercased() }
-            case "-H", "--header":
-                i += 1
-                if i < tokens.count {
-                    let header = tokens[i]
-                    if let colonIndex = header.firstIndex(of: ":") {
-                        let key = String(header[header.startIndex..<colonIndex]).trimmingCharacters(in: .whitespaces)
-                        let value = String(header[header.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
-                        extractedHeaders.append((key, value))
-                    }
-                }
-            case "-d", "--data", "--data-raw", "--data-binary":
-                i += 1
-                if i < tokens.count { extractedBody = tokens[i] }
-            case "--data-urlencode":
-                i += 1
-                // handled same as -d for simplicity
-                if i < tokens.count { extractedBody = tokens[i] }
-            case "-u", "--user":
-                i += 1
-                if i < tokens.count {
-                    let encoded = Data(tokens[i].utf8).base64EncodedString()
-                    extractedHeaders.append(("Authorization", "Basic \(encoded)"))
-                }
-            case "--url":
-                i += 1
-                if i < tokens.count { extractedURL = tokens[i] }
-            case "-k", "--insecure", "--compressed", "-L", "--location",
-                 "-s", "--silent", "-S", "--show-error", "-v", "--verbose",
-                 "-i", "--include":
-                break // ignore flags without arguments
-            default:
-                // If it looks like a URL, capture it
-                if token.hasPrefix("http://") || token.hasPrefix("https://") {
-                    extractedURL = token
-                }
-            }
-            i += 1
-        }
-
-        // Apply parsed values
-        if let url = extractedURL {
+        if let url = parsed.url {
             urlString = url
         }
 
-        if let method = extractedMethod, let m = HTTPMethod(rawValue: method) {
-            selectedMethod = m
-        } else if extractedBody != nil {
-            selectedMethod = .POST
+        if let method = parsed.method {
+            selectedMethod = method
         }
 
-        if !extractedHeaders.isEmpty {
-            headers = extractedHeaders.map { HeaderEntry(key: $0.0, value: $0.1) }
-            headers.append(HeaderEntry())
+        if parsed.headers.count > 1 {
+            headers = parsed.headers
         }
 
-        if let body = extractedBody {
+        if let body = parsed.body {
             requestBody = body
             selectedBodyType = .raw
             selectedRequestTab = .body
         }
     }
 
-    private func tokenize(_ input: String) -> [String] {
-        // Remove line continuations
-        let cleaned = input.replacingOccurrences(of: "\\\n", with: " ")
-            .replacingOccurrences(of: "\\\r\n", with: " ")
-
-        var tokens: [String] = []
-        var current = ""
-        var inSingleQuote = false
-        var inDoubleQuote = false
-        var escaped = false
-
-        for char in cleaned {
-            if escaped {
-                current.append(char)
-                escaped = false
-                continue
-            }
-
-            if char == "\\" && !inSingleQuote {
-                escaped = true
-                continue
-            }
-
-            if char == "'" && !inDoubleQuote {
-                inSingleQuote.toggle()
-                continue
-            }
-
-            if char == "\"" && !inSingleQuote {
-                inDoubleQuote.toggle()
-                continue
-            }
-
-            if char.isWhitespace && !inSingleQuote && !inDoubleQuote {
-                if !current.isEmpty {
-                    tokens.append(current)
-                    current = ""
-                }
-                continue
-            }
-
-            current.append(char)
-        }
-
-        if !current.isEmpty {
-            tokens.append(current)
-        }
-
-        return tokens
-    }
-
-    private func buildURL() -> URL? {
-        let activeParams = params.filter { !$0.key.isEmpty }
-        guard var components = URLComponents(string: urlString) else { return nil }
-
-        if !activeParams.isEmpty {
-            var items = components.queryItems ?? []
-            for param in activeParams {
-                items.append(URLQueryItem(name: param.key, value: param.value))
-            }
-            components.queryItems = items
-        }
-
-        return components.url
-    }
-
-    private func buildBody() -> String? {
-        switch selectedBodyType {
-        case .none:
-            return nil
-        case .raw:
-            return requestBody.isEmpty ? nil : requestBody
-        case .formData:
-            let pairs = formDataEntries.filter { !$0.key.isEmpty }
-            guard !pairs.isEmpty else { return nil }
-            return pairs.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        case .urlEncoded:
-            let pairs = urlEncodedEntries.filter { !$0.key.isEmpty }
-            guard !pairs.isEmpty else { return nil }
-            return pairs.map {
-                let key = $0.key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.key
-                let val = $0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value
-                return "\(key)=\(val)"
-            }.joined(separator: "&")
-        case .graphQL:
-            var dict: [String: Any] = ["query": graphQLQuery]
-            if !graphQLVariables.isEmpty,
-               let data = graphQLVariables.data(using: .utf8),
-               let vars = try? JSONSerialization.jsonObject(with: data) {
-                dict["variables"] = vars
-            }
-            guard let data = try? JSONSerialization.data(withJSONObject: dict) else { return nil }
-            return String(data: data, encoding: .utf8)
-        case .binary:
-            return nil
-        }
-    }
+    // MARK: - Send Request
 
     func sendRequest() {
         guard let url = buildURL(), urlString.hasPrefix("http") else {
@@ -302,7 +140,14 @@ final class RequestViewModel: ObservableObject {
             headerDict["Content-Type"] = "application/json"
         }
 
-        let body = buildBody()
+        let body = BodySerializer.serialize(
+            bodyType: selectedBodyType,
+            rawBody: requestBody,
+            formDataEntries: formDataEntries,
+            urlEncodedEntries: urlEncodedEntries,
+            graphQLQuery: graphQLQuery,
+            graphQLVariables: graphQLVariables
+        )
         let rawBodyData = selectedBodyType == .binary ? binaryFileData : nil
 
         Task {
@@ -320,5 +165,22 @@ final class RequestViewModel: ObservableObject {
             }
             self.isLoading = false
         }
+    }
+
+    // MARK: - URL Builder
+
+    private func buildURL() -> URL? {
+        let activeParams = params.filter { !$0.key.isEmpty }
+        guard var components = URLComponents(string: urlString) else { return nil }
+
+        if !activeParams.isEmpty {
+            var items = components.queryItems ?? []
+            for param in activeParams {
+                items.append(URLQueryItem(name: param.key, value: param.value))
+            }
+            components.queryItems = items
+        }
+
+        return components.url
     }
 }
