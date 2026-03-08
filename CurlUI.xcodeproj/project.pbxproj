@@ -15,6 +15,8 @@
 		AA000006 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000006; };
 		AA000007 /* RequestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000007; };
 		AA000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB000008; };
+		AA000009 /* ParamEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000011; };
+		AA000010 /* BodyType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000012; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +30,8 @@
 		AB000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB000010 /* CurlUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CurlUI.entitlements; sourceTree = "<group>"; };
+		AB000011 /* ParamEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParamEntry.swift; sourceTree = "<group>"; };
+		AB000012 /* BodyType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyType.swift; sourceTree = "<group>"; };
 		AB000099 /* CurlUI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CurlUI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -70,6 +74,8 @@
 				AB000003 /* HTTPMethod.swift */,
 				AB000004 /* HeaderEntry.swift */,
 				AB000005 /* APIResponse.swift */,
+				AB000011 /* ParamEntry.swift */,
+				AB000012 /* BodyType.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -170,6 +176,8 @@
 				AA000005 /* APIResponse.swift in Sources */,
 				AA000006 /* NetworkService.swift in Sources */,
 				AA000007 /* RequestViewModel.swift in Sources */,
+				AA000009 /* ParamEntry.swift in Sources */,
+				AA000010 /* BodyType.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -18,21 +18,33 @@ struct ContentView: View {
 
     private var requestPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // URL Bar
             urlBar
                 .padding()
 
             Divider()
 
-            // Tabs: Headers & Body
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    headersSection
-                    if viewModel.hasBody {
-                        bodySection
-                    }
+            Picker("", selection: $viewModel.selectedRequestTab) {
+                ForEach(RequestViewModel.RequestTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
                 }
-                .padding()
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            switch viewModel.selectedRequestTab {
+            case .params:
+                ScrollView {
+                    paramsSection.padding()
+                }
+            case .headers:
+                ScrollView {
+                    headersSection.padding()
+                }
+            case .body:
+                bodySection
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -42,8 +54,7 @@ struct ContentView: View {
         HStack(spacing: 8) {
             Picker("", selection: $viewModel.selectedMethod) {
                 ForEach(HTTPMethod.allCases) { method in
-                    Text(method.rawValue)
-                        .tag(method)
+                    Text(method.rawValue).tag(method)
                 }
             }
             .labelsHidden()
@@ -68,6 +79,40 @@ struct ContentView: View {
             .keyboardShortcut(.return, modifiers: .command)
         }
     }
+
+    // MARK: - Params
+
+    private var paramsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Query Parameters")
+                    .font(.headline)
+                Spacer()
+                Button(action: { viewModel.addParam() }) {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(.plain)
+            }
+
+            ForEach(Array(viewModel.params.enumerated()), id: \.element.id) { index, _ in
+                HStack(spacing: 8) {
+                    TextField("Key", text: $viewModel.params[index].key)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Value", text: $viewModel.params[index].value)
+                        .textFieldStyle(.roundedBorder)
+                    Button(action: {
+                        viewModel.removeParam(at: IndexSet(integer: index))
+                    }) {
+                        Image(systemName: "minus.circle")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Headers
 
     private var headersSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -99,16 +144,113 @@ struct ContentView: View {
         }
     }
 
-    private var bodySection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Body (JSON)")
-                .font(.headline)
+    // MARK: - Body
 
+    private var bodySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Picker("", selection: $viewModel.selectedBodyType) {
+                ForEach(BodyType.allCases) { type in
+                    Text(type.rawValue).tag(type)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            bodyContent
+        }
+    }
+
+    @ViewBuilder
+    private var bodyContent: some View {
+        switch viewModel.selectedBodyType {
+        case .none:
+            Spacer()
+            HStack {
+                Spacer()
+                Text("This request does not have a body")
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            Spacer()
+
+        case .raw, .binary:
             TextEditor(text: $viewModel.requestBody)
                 .font(.system(.body, design: .monospaced))
-                .frame(minHeight: 150)
-                .border(Color.gray.opacity(0.3))
-                .cornerRadius(4)
+                .padding(4)
+
+        case .formData:
+            ScrollView {
+                keyValueEditor(
+                    entries: $viewModel.formDataEntries,
+                    add: { viewModel.addFormDataEntry() },
+                    remove: { viewModel.removeFormDataEntry(at: $0) }
+                )
+                .padding()
+            }
+
+        case .urlEncoded:
+            ScrollView {
+                keyValueEditor(
+                    entries: $viewModel.urlEncodedEntries,
+                    add: { viewModel.addUrlEncodedEntry() },
+                    remove: { viewModel.removeUrlEncodedEntry(at: $0) }
+                )
+                .padding()
+            }
+
+        case .graphQL:
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Query")
+                    .font(.headline)
+                    .padding([.horizontal, .top])
+                TextEditor(text: $viewModel.graphQLQuery)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(minHeight: 80)
+                    .padding(.horizontal)
+
+                Text("Variables (JSON)")
+                    .font(.headline)
+                    .padding(.horizontal)
+                TextEditor(text: $viewModel.graphQLVariables)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(minHeight: 50)
+                    .padding([.horizontal, .bottom])
+            }
+        }
+    }
+
+    private func keyValueEditor(
+        entries: Binding<[HeaderEntry]>,
+        add: @escaping () -> Void,
+        remove: @escaping (IndexSet) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Spacer()
+                Button(action: add) {
+                    Image(systemName: "plus.circle")
+                }
+                .buttonStyle(.plain)
+            }
+
+            ForEach(Array(entries.wrappedValue.enumerated()), id: \.element.id) { index, _ in
+                HStack(spacing: 8) {
+                    TextField("Key", text: entries[index].key)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Value", text: entries[index].value)
+                        .textFieldStyle(.roundedBorder)
+                    Button(action: {
+                        remove(IndexSet(integer: index))
+                    }) {
+                        Image(systemName: "minus.circle")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -164,7 +306,6 @@ struct ContentView: View {
 
     private func responseContent(_ response: APIResponse) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Status bar
             HStack(spacing: 12) {
                 statusBadge(response)
                 Text(String(format: "%.0f ms", response.duration * 1000))
@@ -176,7 +317,6 @@ struct ContentView: View {
 
             Divider()
 
-            // Response tabs
             Picker("", selection: $viewModel.selectedResponseTab) {
                 ForEach(RequestViewModel.ResponseTab.allCases, id: \.self) { tab in
                     Text(tab.rawValue).tag(tab)
@@ -188,7 +328,6 @@ struct ContentView: View {
 
             Divider()
 
-            // Tab content
             switch viewModel.selectedResponseTab {
             case .body:
                 responseBodyView(response)
