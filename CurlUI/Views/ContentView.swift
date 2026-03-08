@@ -61,8 +61,11 @@ struct ContentView: View {
             .labelsHidden()
             .frame(width: 100)
 
-            TextField("Enter URL", text: $viewModel.urlString)
+            TextField("Enter URL or paste curl command", text: $viewModel.urlString)
                 .textFieldStyle(.roundedBorder)
+                .onChange(of: viewModel.urlString) { newValue in
+                    viewModel.handleURLChange(newValue)
+                }
                 .onSubmit { viewModel.sendRequest() }
 
             Button(action: { viewModel.sendRequest() }) {
