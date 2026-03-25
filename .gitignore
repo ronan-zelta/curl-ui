@@ -1,0 +1,12 @@
+build/bin
+node_modules
+frontend/dist
+frontend/wailsjs
+.DS_Store
+.idea
+*.exe
+*.app
+*.nsi
+*.nsh
+*.md5
+.vscode
