@@ -5,6 +5,32 @@
   import RequestPanel from './components/RequestPanel.svelte';
   import ResponsePanel from './components/ResponsePanel.svelte';
 
+  let splitPercent = 45;
+  let dragging = false;
+  let workspaceEl;
+
+  function onDividerMousedown(e) {
+    e.preventDefault();
+    dragging = true;
+
+    function onMousemove(e) {
+      if (!workspaceEl) return;
+      const rect = workspaceEl.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const pct = (y / rect.height) * 100;
+      splitPercent = Math.max(15, Math.min(85, pct));
+    }
+
+    function onMouseup() {
+      dragging = false;
+      window.removeEventListener('mousemove', onMousemove);
+      window.removeEventListener('mouseup', onMouseup);
+    }
+
+    window.addEventListener('mousemove', onMousemove);
+    window.addEventListener('mouseup', onMouseup);
+  }
+
   onMount(() => {
     function handleKeydown(e) {
       const mod = e.metaKey || e.ctrlKey;
@@ -44,9 +70,16 @@
 
 <main>
   <TabBar />
-  <div class="workspace">
-    <RequestPanel />
-    <ResponsePanel />
+  <div class="workspace" bind:this={workspaceEl} class:dragging>
+    <div class="pane request-pane" style="height: {splitPercent}%">
+      <RequestPanel />
+    </div>
+    <div class="divider" on:mousedown={onDividerMousedown}>
+      <div class="divider-handle"></div>
+    </div>
+    <div class="pane response-pane" style="height: {100 - splitPercent}%">
+      <ResponsePanel />
+    </div>
   </div>
 </main>
 
@@ -90,5 +123,37 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
+  }
+  .workspace.dragging {
+    cursor: row-resize;
+    user-select: none;
+  }
+  .pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .divider {
+    height: 6px;
+    background: #1a1a24;
+    border-top: 1px solid #2a2a3a;
+    border-bottom: 1px solid #2a2a3a;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .divider:hover, .workspace.dragging .divider {
+    background: #22222e;
+  }
+  .divider-handle {
+    width: 40px;
+    height: 2px;
+    background: #3a3a4a;
+    border-radius: 1px;
+  }
+  .divider:hover .divider-handle, .workspace.dragging .divider-handle {
+    background: #7c6fe0;
   }
 </style>

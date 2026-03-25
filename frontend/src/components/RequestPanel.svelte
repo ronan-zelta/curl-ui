@@ -288,6 +288,17 @@
     </div>
   </div>
 
+  {#if activeSection === 'body'}
+    <div class="body-type-tabs">
+      <button class:active={tab.bodyType === 'none'} on:click={() => setBodyType('none')}>None</button>
+      <button class:active={tab.bodyType === 'json'} on:click={() => setBodyType('json')}>JSON</button>
+      <button class:active={tab.bodyType === 'raw'} on:click={() => setBodyType('raw')}>Raw</button>
+      <button class:active={tab.bodyType === 'form-data'} on:click={() => setBodyType('form-data')}>Form Data</button>
+      <button class:active={tab.bodyType === 'urlencoded'} on:click={() => setBodyType('urlencoded')}>URL Encoded</button>
+      <button class:active={tab.bodyType === 'binary'} on:click={() => setBodyType('binary')}>Binary</button>
+    </div>
+  {/if}
+
   <div class="section-content">
     {#if activeSection === 'params'}
       <KeyValueEditor
@@ -299,59 +310,49 @@
     {:else if activeSection === 'headers'}
       <HeadersEditor />
     {:else}
-      <div class="body-editor">
-        <div class="body-type-tabs">
-          <button class:active={tab.bodyType === 'none'} on:click={() => setBodyType('none')}>None</button>
-          <button class:active={tab.bodyType === 'json'} on:click={() => setBodyType('json')}>JSON</button>
-          <button class:active={tab.bodyType === 'raw'} on:click={() => setBodyType('raw')}>Raw</button>
-          <button class:active={tab.bodyType === 'form-data'} on:click={() => setBodyType('form-data')}>Form Data</button>
-          <button class:active={tab.bodyType === 'urlencoded'} on:click={() => setBodyType('urlencoded')}>URL Encoded</button>
-          <button class:active={tab.bodyType === 'binary'} on:click={() => setBodyType('binary')}>Binary</button>
+      {#if tab.bodyType === 'json'}
+        <CodeEditor
+          value={tab.body}
+          lang="json"
+          placeholder={'{"key": "value"}'}
+          on:input={(e) => setBody(e.detail)}
+        />
+      {:else if tab.bodyType === 'raw'}
+        <textarea
+          class="body-textarea"
+          placeholder="Request body..."
+          value={tab.body}
+          on:input={(e) => setBody(e.target.value)}
+          spellcheck="false"
+        ></textarea>
+      {:else if tab.bodyType === 'form-data'}
+        <KeyValueEditor
+          items={tab.formData}
+          keyPlaceholder="Key"
+          valuePlaceholder="Value"
+          on:change={(e) => tabStore.updateTab(tab.id, { formData: e.detail })}
+        />
+      {:else if tab.bodyType === 'urlencoded'}
+        <KeyValueEditor
+          items={tab.urlEncoded}
+          keyPlaceholder="Key"
+          valuePlaceholder="Value"
+          on:change={(e) => tabStore.updateTab(tab.id, { urlEncoded: e.detail })}
+        />
+      {:else if tab.bodyType === 'binary'}
+        <div class="binary-picker">
+          <input
+            class="binary-path"
+            type="text"
+            placeholder="/path/to/file"
+            value={tab.binaryPath}
+            on:input={(e) => tabStore.updateTab(tab.id, { binaryPath: e.target.value })}
+          />
+          <button class="binary-browse" on:click={pickFile}>Browse...</button>
         </div>
-        {#if tab.bodyType === 'json'}
-          <CodeEditor
-            value={tab.body}
-            lang="json"
-            placeholder={'{"key": "value"}'}
-            on:input={(e) => setBody(e.detail)}
-          />
-        {:else if tab.bodyType === 'raw'}
-          <textarea
-            class="body-textarea"
-            placeholder="Request body..."
-            value={tab.body}
-            on:input={(e) => setBody(e.target.value)}
-            spellcheck="false"
-          ></textarea>
-        {:else if tab.bodyType === 'form-data'}
-          <KeyValueEditor
-            items={tab.formData}
-            keyPlaceholder="Key"
-            valuePlaceholder="Value"
-            on:change={(e) => tabStore.updateTab(tab.id, { formData: e.detail })}
-          />
-        {:else if tab.bodyType === 'urlencoded'}
-          <KeyValueEditor
-            items={tab.urlEncoded}
-            keyPlaceholder="Key"
-            valuePlaceholder="Value"
-            on:change={(e) => tabStore.updateTab(tab.id, { urlEncoded: e.detail })}
-          />
-        {:else if tab.bodyType === 'binary'}
-          <div class="binary-picker">
-            <input
-              class="binary-path"
-              type="text"
-              placeholder="/path/to/file"
-              value={tab.binaryPath}
-              on:input={(e) => tabStore.updateTab(tab.id, { binaryPath: e.target.value })}
-            />
-            <button class="binary-browse" on:click={pickFile}>Browse...</button>
-          </div>
-        {:else}
-          <div class="body-empty">This request does not have a body</div>
-        {/if}
-      </div>
+      {:else}
+        <div class="body-empty">This request does not have a body</div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -362,7 +363,8 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    flex-shrink: 0;
+    flex: 1;
+    overflow: hidden;
   }
   .url-bar {
     display: flex;
@@ -461,16 +463,17 @@
   .section-content {
     padding: 12px 16px;
     overflow-y: auto;
-    max-height: 250px;
-  }
-  .body-editor {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    min-height: 0;
   }
   .body-type-tabs {
     display: flex;
     gap: 4px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #2a2a3a;
+    flex-shrink: 0;
   }
   .body-type-tabs button {
     background: #1a1a24;
@@ -496,8 +499,9 @@
     padding: 10px 12px;
     font-size: 13px;
     font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-    resize: vertical;
-    min-height: 120px;
+    resize: none;
+    flex: 1;
+    min-height: 0;
     outline: none;
     line-height: 1.5;
     tab-size: 2;

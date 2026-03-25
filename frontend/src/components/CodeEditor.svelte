@@ -104,13 +104,11 @@
     border: 1px solid #2a2a3a;
     border-radius: 6px;
     overflow: hidden;
-    min-height: 120px;
-    max-height: 250px;
+    flex: 1;
+    min-height: 0;
   }
   .editor-wrapper :global(.cm-editor) {
     height: 100%;
-    min-height: 120px;
-    max-height: 248px;
     background: #1a1a24;
   }
   .editor-wrapper :global(.cm-editor.cm-focused) {
