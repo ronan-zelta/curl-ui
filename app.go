@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -29,31 +30,6 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-}
-
-type KeyValue struct {
-	Key     string `json:"key"`
-	Value   string `json:"value"`
-	Enabled bool   `json:"enabled"`
-}
-
-type RequestPayload struct {
-	Method      string            `json:"method"`
-	URL         string            `json:"url"`
-	Headers     map[string]string `json:"headers"`
-	Body        string            `json:"body"`
-	BodyType    string            `json:"bodyType"`
-	FormData    []KeyValue        `json:"formData"`
-	URLEncoded  []KeyValue        `json:"urlEncoded"`
-	BinaryPath  string            `json:"binaryPath"`
-}
-
-type ResponsePayload struct {
-	StatusCode int               `json:"statusCode"`
-	StatusText string            `json:"statusText"`
-	Headers    map[string]string `json:"headers"`
-	Body       string            `json:"body"`
-	DurationMs int64             `json:"durationMs"`
 }
 
 func (a *App) PickFile() (string, error) {
@@ -90,18 +66,18 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 	var contentType string
 
 	switch req.BodyType {
-	case "json":
+	case BodyTypeJSON:
 		if req.Body != "" {
 			bodyReader = strings.NewReader(req.Body)
 			if _, ok := req.Headers["Content-Type"]; !ok {
 				contentType = "application/json"
 			}
 		}
-	case "raw":
+	case BodyTypeRaw:
 		if req.Body != "" {
 			bodyReader = strings.NewReader(req.Body)
 		}
-	case "form-data":
+	case BodyTypeFormData:
 		var buf bytes.Buffer
 		writer := multipart.NewWriter(&buf)
 		for _, kv := range req.FormData {
@@ -119,7 +95,7 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 		if _, ok := req.Headers["Content-Type"]; !ok {
 			contentType = writer.FormDataContentType()
 		}
-	case "urlencoded":
+	case BodyTypeURLEncoded:
 		values := url.Values{}
 		for _, kv := range req.URLEncoded {
 			if !kv.Enabled || kv.Key == "" {
@@ -134,7 +110,7 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 				contentType = "application/x-www-form-urlencoded"
 			}
 		}
-	case "binary":
+	case BodyTypeBinary:
 		if req.BinaryPath != "" {
 			file, err := os.Open(req.BinaryPath)
 			if err != nil {
@@ -182,7 +158,7 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 	duration := time.Since(start)
 
 	if err != nil {
-		if ctx.Err() == context.Canceled {
+		if errors.Is(ctx.Err(), context.Canceled) {
 			return ResponsePayload{}, fmt.Errorf("request cancelled")
 		}
 		return ResponsePayload{}, fmt.Errorf("request failed: %w", err)
@@ -222,33 +198,4 @@ func (a *App) CancelRequest() {
 	if a.cancel != nil {
 		a.cancel()
 	}
-}
-
-func isBinaryContent(contentType string) bool {
-	if contentType == "" {
-		return false
-	}
-	ct := strings.ToLower(contentType)
-	if strings.HasPrefix(ct, "text/") {
-		return false
-	}
-	if strings.Contains(ct, "application/json") {
-		return false
-	}
-	if strings.Contains(ct, "application/xml") {
-		return false
-	}
-	if strings.Contains(ct, "application/javascript") {
-		return false
-	}
-	if strings.Contains(ct, "application/x-www-form-urlencoded") {
-		return false
-	}
-	if strings.Contains(ct, "application/") {
-		return true
-	}
-	if strings.HasPrefix(ct, "image/") || strings.HasPrefix(ct, "audio/") || strings.HasPrefix(ct, "video/") {
-		return true
-	}
-	return false
 }

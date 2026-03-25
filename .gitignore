@@ -10,3 +10,4 @@ frontend/wailsjs
 *.nsh
 *.md5
 .vscode
+httpclient
