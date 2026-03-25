@@ -49,7 +49,6 @@
   .tabs-scroll {
     display: flex;
     overflow-x: auto;
-    flex: 1;
     scrollbar-width: none;
   }
   .tabs-scroll::-webkit-scrollbar { display: none; }
@@ -81,10 +80,10 @@
     text-overflow: ellipsis;
   }
   .tab-close {
-    font-size: 14px;
+    font-size: 18px;
     line-height: 1;
     opacity: 0.4;
-    padding: 0 2px;
+    padding: 2px 4px;
     border-radius: 3px;
   }
   .tab-close:hover { opacity: 1; background: #3a3a4a; }
