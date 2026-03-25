@@ -1,6 +1,7 @@
 <script>
   import { tabStore, activeTab } from '../stores/tabs.js';
   import { SendRequest, CancelRequest } from '../../wailsjs/go/main/App.js';
+  import { parseCurl } from '../lib/curlparser.js';
   import HeadersEditor from './HeadersEditor.svelte';
   import CodeEditor from './CodeEditor.svelte';
 
@@ -16,6 +17,29 @@
 
   function setUrl(e) {
     tabStore.updateTab(tab.id, { url: e.target.value });
+  }
+
+  function handlePaste(e) {
+    const text = e.clipboardData.getData('text').trim();
+    if (!text.match(/^\s*curl\s/i)) return;
+
+    e.preventDefault();
+    const parsed = parseCurl(text);
+    if (!parsed) return;
+
+    const headers = parsed.headers.length > 0
+      ? parsed.headers.map(h => ({ ...h, enabled: true }))
+      : [{ key: '', value: '', enabled: true }];
+
+    const updates = {
+      method: parsed.method,
+      url: parsed.url,
+      headers,
+      body: parsed.body,
+      bodyType: parsed.bodyType,
+    };
+
+    tabStore.updateTab(tab.id, updates);
   }
 
   function setBodyType(type) {
@@ -65,6 +89,44 @@
     }
   }
 
+  let curlCopyText = 'Copy as cURL';
+
+  function prettyPrint() {
+    if (!tab || tab.bodyType !== 'json' || !tab.body.trim()) return;
+    try {
+      const formatted = JSON.stringify(JSON.parse(tab.body), null, 4);
+      tabStore.updateTab(tab.id, { body: formatted });
+    } catch {
+      // invalid JSON, do nothing
+    }
+  }
+
+  function copyAsCurl() {
+    if (!tab) return;
+    const url = tab.url.startsWith('http') ? tab.url : 'https://' + tab.url;
+    let parts = [`curl -X ${tab.method}`];
+
+    const enabledHeaders = tab.headers.filter(h => h.enabled && h.key.trim());
+    for (const h of enabledHeaders) {
+      parts.push(`-H '${h.key}: ${h.value}'`);
+    }
+
+    if (tab.bodyType === 'json' && tab.body.trim()) {
+      if (!enabledHeaders.some(h => h.key.toLowerCase() === 'content-type')) {
+        parts.push("-H 'Content-Type: application/json'");
+      }
+      parts.push(`-d '${tab.body.replace(/'/g, "'\\''")}'`);
+    } else if (tab.bodyType === 'raw' && tab.body.trim()) {
+      parts.push(`-d '${tab.body.replace(/'/g, "'\\''")}'`);
+    }
+
+    parts.push(`'${url}'`);
+    const cmd = parts.join(' \\\n    ');
+    navigator.clipboard.writeText(cmd);
+    curlCopyText = 'Copied!';
+    setTimeout(() => { curlCopyText = 'Copy as cURL'; }, 1500);
+  }
+
   function getMethodColor(method) {
     const colors = {
       GET: '#61affe',
@@ -100,6 +162,7 @@
       value={tab.url}
       on:input={setUrl}
       on:keydown={handleUrlKeydown}
+      on:paste={handlePaste}
     />
     {#if tab.loading}
       <button class="send-btn cancel" on:click={cancelRequest}>Cancel</button>
@@ -124,6 +187,10 @@
       class:active={activeSection === 'body'}
       on:click={() => activeSection = 'body'}
     >Body</button>
+    <div class="section-actions">
+      <button class="action-btn" on:click={prettyPrint} title="Format JSON body">Pretty Print</button>
+      <button class="action-btn" on:click={copyAsCurl} title="Copy request as cURL command">{curlCopyText}</button>
+    </div>
   </div>
 
   <div class="section-content">
@@ -236,6 +303,24 @@
   }
   .section-tab:hover { color: #ccc; }
   .section-tab.active { color: #e0e0e0; border-bottom-color: #7c6fe0; }
+  .section-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .action-btn {
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    color: #888;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .action-btn:hover { color: #ccc; border-color: #3a3a4a; }
   .badge {
     background: #7c6fe0;
     color: #fff;
