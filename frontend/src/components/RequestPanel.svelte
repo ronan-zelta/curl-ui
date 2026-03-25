@@ -2,6 +2,7 @@
   import { tabStore, activeTab } from '../stores/tabs.js';
   import { SendRequest, CancelRequest } from '../../wailsjs/go/main/App.js';
   import HeadersEditor from './HeadersEditor.svelte';
+  import CodeEditor from './CodeEditor.svelte';
 
   $: tab = $activeTab;
 
@@ -21,8 +22,8 @@
     tabStore.updateTab(tab.id, { bodyType: type });
   }
 
-  function setBody(e) {
-    tabStore.updateTab(tab.id, { body: e.target.value });
+  function setBody(value) {
+    tabStore.updateTab(tab.id, { body: value });
   }
 
   async function sendRequest() {
@@ -135,12 +136,19 @@
           <button class:active={tab.bodyType === 'json'} on:click={() => setBodyType('json')}>JSON</button>
           <button class:active={tab.bodyType === 'raw'} on:click={() => setBodyType('raw')}>Raw</button>
         </div>
-        {#if tab.bodyType !== 'none'}
+        {#if tab.bodyType === 'json'}
+          <CodeEditor
+            value={tab.body}
+            lang="json"
+            placeholder={'{"key": "value"}'}
+            on:input={(e) => setBody(e.detail)}
+          />
+        {:else if tab.bodyType === 'raw'}
           <textarea
             class="body-textarea"
-            placeholder={tab.bodyType === 'json' ? '{\n  "key": "value"\n}' : 'Request body...'}
+            placeholder="Request body..."
             value={tab.body}
-            on:input={setBody}
+            on:input={(e) => setBody(e.target.value)}
             spellcheck="false"
           ></textarea>
         {:else}

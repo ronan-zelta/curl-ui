@@ -21,7 +21,7 @@
     const ct = (headers && headers['Content-Type']) || '';
     if (ct.includes('application/json') || ct.includes('+json')) {
       try {
-        return JSON.stringify(JSON.parse(body), null, 2);
+        return JSON.stringify(JSON.parse(body), null, 4);
       } catch {
         return body;
       }
