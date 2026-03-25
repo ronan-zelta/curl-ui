@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -25,12 +31,21 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
+type KeyValue struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Enabled bool   `json:"enabled"`
+}
+
 type RequestPayload struct {
-	Method   string            `json:"method"`
-	URL      string            `json:"url"`
-	Headers  map[string]string `json:"headers"`
-	Body     string            `json:"body"`
-	BodyType string            `json:"bodyType"`
+	Method      string            `json:"method"`
+	URL         string            `json:"url"`
+	Headers     map[string]string `json:"headers"`
+	Body        string            `json:"body"`
+	BodyType    string            `json:"bodyType"`
+	FormData    []KeyValue        `json:"formData"`
+	URLEncoded  []KeyValue        `json:"urlEncoded"`
+	BinaryPath  string            `json:"binaryPath"`
 }
 
 type ResponsePayload struct {
@@ -39,6 +54,16 @@ type ResponsePayload struct {
 	Headers    map[string]string `json:"headers"`
 	Body       string            `json:"body"`
 	DurationMs int64             `json:"durationMs"`
+}
+
+func (a *App) PickFile() (string, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select File",
+	})
+	if err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
@@ -62,8 +87,69 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 	}()
 
 	var bodyReader io.Reader
-	if req.BodyType != "none" && req.Body != "" {
-		bodyReader = strings.NewReader(req.Body)
+	var contentType string
+
+	switch req.BodyType {
+	case "json":
+		if req.Body != "" {
+			bodyReader = strings.NewReader(req.Body)
+			if _, ok := req.Headers["Content-Type"]; !ok {
+				contentType = "application/json"
+			}
+		}
+	case "raw":
+		if req.Body != "" {
+			bodyReader = strings.NewReader(req.Body)
+		}
+	case "form-data":
+		var buf bytes.Buffer
+		writer := multipart.NewWriter(&buf)
+		for _, kv := range req.FormData {
+			if !kv.Enabled || kv.Key == "" {
+				continue
+			}
+			if err := writer.WriteField(kv.Key, kv.Value); err != nil {
+				return ResponsePayload{}, fmt.Errorf("failed to write form field: %w", err)
+			}
+		}
+		if err := writer.Close(); err != nil {
+			return ResponsePayload{}, fmt.Errorf("failed to close multipart writer: %w", err)
+		}
+		bodyReader = &buf
+		if _, ok := req.Headers["Content-Type"]; !ok {
+			contentType = writer.FormDataContentType()
+		}
+	case "urlencoded":
+		values := url.Values{}
+		for _, kv := range req.URLEncoded {
+			if !kv.Enabled || kv.Key == "" {
+				continue
+			}
+			values.Add(kv.Key, kv.Value)
+		}
+		encoded := values.Encode()
+		if encoded != "" {
+			bodyReader = strings.NewReader(encoded)
+			if _, ok := req.Headers["Content-Type"]; !ok {
+				contentType = "application/x-www-form-urlencoded"
+			}
+		}
+	case "binary":
+		if req.BinaryPath != "" {
+			file, err := os.Open(req.BinaryPath)
+			if err != nil {
+				return ResponsePayload{}, fmt.Errorf("failed to open file: %w", err)
+			}
+			defer file.Close()
+			data, err := io.ReadAll(file)
+			if err != nil {
+				return ResponsePayload{}, fmt.Errorf("failed to read file: %w", err)
+			}
+			bodyReader = bytes.NewReader(data)
+			if _, ok := req.Headers["Content-Type"]; !ok {
+				contentType = "application/octet-stream"
+			}
+		}
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, req.Method, req.URL, bodyReader)
@@ -75,8 +161,8 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 		httpReq.Header.Set(key, value)
 	}
 
-	if req.BodyType == "json" && httpReq.Header.Get("Content-Type") == "" {
-		httpReq.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		httpReq.Header.Set("Content-Type", contentType)
 	}
 
 	client := &http.Client{
@@ -103,7 +189,7 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024)) // 10MB limit
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 	if err != nil {
 		return ResponsePayload{}, fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -113,10 +199,10 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 		headers[key] = resp.Header.Get(key)
 	}
 
-	contentType := resp.Header.Get("Content-Type")
+	respContentType := resp.Header.Get("Content-Type")
 	bodyStr := ""
-	if isBinaryContent(contentType) {
-		bodyStr = fmt.Sprintf("[Binary response: %s, %d bytes]", contentType, len(body))
+	if isBinaryContent(respContentType) {
+		bodyStr = fmt.Sprintf("[Binary response: %s, %d bytes]", respContentType, len(body))
 	} else {
 		bodyStr = string(body)
 	}

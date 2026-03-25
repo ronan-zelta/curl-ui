@@ -1,22 +1,76 @@
 <script>
   import { tabStore, activeTab } from '../stores/tabs.js';
-  import { SendRequest, CancelRequest } from '../../wailsjs/go/main/App.js';
+  import { SendRequest, CancelRequest, PickFile } from '../../wailsjs/go/main/App.js';
   import { parseCurl } from '../lib/curlparser.js';
   import HeadersEditor from './HeadersEditor.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import KeyValueEditor from './KeyValueEditor.svelte';
 
   $: tab = $activeTab;
 
-  let activeSection = 'headers';
+  let activeSection = 'params';
 
   const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+
+  let syncingParams = false;
 
   function setMethod(method) {
     tabStore.updateTab(tab.id, { method });
   }
 
   function setUrl(e) {
-    tabStore.updateTab(tab.id, { url: e.target.value });
+    const url = e.target.value;
+    tabStore.updateTab(tab.id, { url });
+    syncParamsFromUrl(url);
+  }
+
+  function syncParamsFromUrl(rawUrl) {
+    if (syncingParams) return;
+    syncingParams = true;
+    try {
+      const fullUrl = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
+      const parsed = new URL(fullUrl);
+      const params = [];
+      parsed.searchParams.forEach((value, key) => {
+        params.push({ key, value, enabled: true });
+      });
+      if (params.length === 0) {
+        params.push({ key: '', value: '', enabled: true });
+      }
+      tabStore.updateTab(tab.id, { params });
+    } catch {
+      // invalid URL, leave params as-is
+    }
+    syncingParams = false;
+  }
+
+  function syncUrlFromParams(params) {
+    if (syncingParams) return;
+    syncingParams = true;
+    try {
+      const raw = tab.url || '';
+      const fullUrl = raw.startsWith('http') ? raw : 'https://' + raw;
+      const parsed = new URL(fullUrl);
+      // Clear existing params
+      const keys = [...parsed.searchParams.keys()];
+      keys.forEach(k => parsed.searchParams.delete(k));
+      // Add enabled params
+      for (const p of params) {
+        if (p.enabled && p.key.trim()) {
+          parsed.searchParams.append(p.key, p.value);
+        }
+      }
+      // Reconstruct URL preserving original scheme
+      let newUrl = parsed.toString();
+      if (!raw.startsWith('http')) {
+        newUrl = newUrl.replace(/^https?:\/\//, '');
+      }
+      tabStore.updateTab(tab.id, { url: newUrl, params });
+    } catch {
+      // invalid URL, just update params
+      tabStore.updateTab(tab.id, { params });
+    }
+    syncingParams = false;
   }
 
   function handlePaste(e) {
@@ -42,6 +96,17 @@
     tabStore.updateTab(tab.id, updates);
   }
 
+  async function pickFile() {
+    try {
+      const path = await PickFile();
+      if (path) {
+        tabStore.updateTab(tab.id, { binaryPath: path });
+      }
+    } catch {
+      // user cancelled
+    }
+  }
+
   function setBodyType(type) {
     tabStore.updateTab(tab.id, { bodyType: type });
   }
@@ -61,8 +126,11 @@
       method: tab.method,
       url: tab.url,
       headers: enabledHeaders,
-      body: tab.bodyType !== 'none' ? tab.body : '',
+      body: (tab.bodyType === 'json' || tab.bodyType === 'raw') ? tab.body : '',
       bodyType: tab.bodyType,
+      formData: tab.bodyType === 'form-data' ? tab.formData : [],
+      urlEncoded: tab.bodyType === 'urlencoded' ? tab.urlEncoded : [],
+      binaryPath: tab.bodyType === 'binary' ? tab.binaryPath : '',
     };
 
     tabStore.updateTab(tab.id, { loading: true, error: null, response: null });
@@ -118,6 +186,23 @@
       parts.push(`-d '${tab.body.replace(/'/g, "'\\''")}'`);
     } else if (tab.bodyType === 'raw' && tab.body.trim()) {
       parts.push(`-d '${tab.body.replace(/'/g, "'\\''")}'`);
+    } else if (tab.bodyType === 'form-data') {
+      for (const kv of tab.formData.filter(f => f.enabled && f.key.trim())) {
+        parts.push(`-F '${kv.key}=${kv.value.replace(/'/g, "'\\''")}'`);
+      }
+    } else if (tab.bodyType === 'urlencoded') {
+      const pairs = tab.urlEncoded
+        .filter(f => f.enabled && f.key.trim())
+        .map(kv => `${encodeURIComponent(kv.key)}=${encodeURIComponent(kv.value)}`)
+        .join('&');
+      if (pairs) {
+        if (!enabledHeaders.some(h => h.key.toLowerCase() === 'content-type')) {
+          parts.push("-H 'Content-Type: application/x-www-form-urlencoded'");
+        }
+        parts.push(`-d '${pairs}'`);
+      }
+    } else if (tab.bodyType === 'binary' && tab.binaryPath) {
+      parts.push(`--data-binary '@${tab.binaryPath}'`);
     }
 
     parts.push(`'${url}'`);
@@ -174,6 +259,16 @@
   <div class="section-tabs">
     <button
       class="section-tab"
+      class:active={activeSection === 'params'}
+      on:click={() => activeSection = 'params'}
+    >
+      Params
+      {#if tab.params.filter(p => p.key.trim()).length > 0}
+        <span class="badge">{tab.params.filter(p => p.key.trim()).length}</span>
+      {/if}
+    </button>
+    <button
+      class="section-tab"
       class:active={activeSection === 'headers'}
       on:click={() => activeSection = 'headers'}
     >
@@ -194,7 +289,14 @@
   </div>
 
   <div class="section-content">
-    {#if activeSection === 'headers'}
+    {#if activeSection === 'params'}
+      <KeyValueEditor
+        items={tab.params}
+        keyPlaceholder="Parameter"
+        valuePlaceholder="Value"
+        on:change={(e) => syncUrlFromParams(e.detail)}
+      />
+    {:else if activeSection === 'headers'}
       <HeadersEditor />
     {:else}
       <div class="body-editor">
@@ -202,6 +304,9 @@
           <button class:active={tab.bodyType === 'none'} on:click={() => setBodyType('none')}>None</button>
           <button class:active={tab.bodyType === 'json'} on:click={() => setBodyType('json')}>JSON</button>
           <button class:active={tab.bodyType === 'raw'} on:click={() => setBodyType('raw')}>Raw</button>
+          <button class:active={tab.bodyType === 'form-data'} on:click={() => setBodyType('form-data')}>Form Data</button>
+          <button class:active={tab.bodyType === 'urlencoded'} on:click={() => setBodyType('urlencoded')}>URL Encoded</button>
+          <button class:active={tab.bodyType === 'binary'} on:click={() => setBodyType('binary')}>Binary</button>
         </div>
         {#if tab.bodyType === 'json'}
           <CodeEditor
@@ -218,6 +323,31 @@
             on:input={(e) => setBody(e.target.value)}
             spellcheck="false"
           ></textarea>
+        {:else if tab.bodyType === 'form-data'}
+          <KeyValueEditor
+            items={tab.formData}
+            keyPlaceholder="Key"
+            valuePlaceholder="Value"
+            on:change={(e) => tabStore.updateTab(tab.id, { formData: e.detail })}
+          />
+        {:else if tab.bodyType === 'urlencoded'}
+          <KeyValueEditor
+            items={tab.urlEncoded}
+            keyPlaceholder="Key"
+            valuePlaceholder="Value"
+            on:change={(e) => tabStore.updateTab(tab.id, { urlEncoded: e.detail })}
+          />
+        {:else if tab.bodyType === 'binary'}
+          <div class="binary-picker">
+            <input
+              class="binary-path"
+              type="text"
+              placeholder="/path/to/file"
+              value={tab.binaryPath}
+              on:input={(e) => tabStore.updateTab(tab.id, { binaryPath: e.target.value })}
+            />
+            <button class="binary-browse" on:click={pickFile}>Browse...</button>
+          </div>
         {:else}
           <div class="body-empty">This request does not have a body</div>
         {/if}
@@ -374,6 +504,36 @@
   }
   .body-textarea:focus { border-color: #7c6fe0; }
   .body-textarea::placeholder { color: #444; }
+  .binary-picker {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .binary-path {
+    flex: 1;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    outline: none;
+  }
+  .binary-path:focus { border-color: #7c6fe0; }
+  .binary-path::placeholder { color: #555; }
+  .binary-browse {
+    background: #2a2a3a;
+    border: 1px solid #3a3a4a;
+    border-radius: 6px;
+    color: #ccc;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .binary-browse:hover { background: #3a3a4a; border-color: #7c6fe0; }
   .body-empty {
     color: #555;
     font-size: 13px;
