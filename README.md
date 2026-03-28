@@ -22,13 +22,20 @@ A lightweight desktop HTTP client for macOS and Linux. Single binary, no runtime
 
 ## Installation
 
-Download the latest binary for your platform from [Releases](../../releases/tag/latest).
+```sh
+curl -fsSL https://raw.githubusercontent.com/ronan-zelta/curl-ui/master/install.sh | sh
+```
+
+Installs the latest release for your platform (macOS and Linux). On macOS, the app is installed to `/Applications`. On Linux, the binary is installed to `/usr/local/bin`. Windows users should download manually from the table below.
+
+Or download manually from [Releases](../../releases/tag/latest):
 
 | Platform | File |
 |----------|------|
 | macOS (Apple Silicon) | `httpclient-darwin-arm64.zip` |
 | macOS (Intel) | `httpclient-darwin-amd64.zip` |
 | Linux | `httpclient-linux-amd64.tar.gz` |
+| Windows | `httpclient-windows-amd64.zip` |
 
 ## Building from source
 

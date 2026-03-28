@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - 'README.md'
+      - 'CLAUDE.md'
+      - 'install.sh'
+      - 'Makefile'
+      - '.github/**'
 
 jobs:
   build:
