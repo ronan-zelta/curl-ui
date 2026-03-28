@@ -11,7 +11,7 @@ A lightweight desktop HTTP client built with Go + Wails + Svelte. Single binary,
 
 ## Development workflow
 
-After making any changes, rebuild and relaunch with:
+Always run `make run` after making any changes so the changes can be manually tested.
 
 ```bash
 make run

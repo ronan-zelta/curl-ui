@@ -24,6 +24,7 @@ export function parseCurl(input) {
   let headers = [];
   let body = '';
   let bodyType = 'none';
+  let urlEncoded = [];
 
   // Flags that take no argument — just skip them
   const noArgFlags = new Set([
@@ -74,9 +75,14 @@ export function parseCurl(input) {
     } else if (tok === '-d' || tok === '--data' || tok === '--data-raw' || tok === '--data-binary') {
       body = tokens[++i] || '';
     } else if (tok === '--data-urlencode') {
-      // Append as URL-encoded form data
+      // --data-urlencode 'key=value' — split into key/value pair for the URL Encoded tab.
       const val = tokens[++i] || '';
-      body = body ? body + '&' + encodeURIComponent(val) : encodeURIComponent(val);
+      const eqIdx = val.indexOf('=');
+      if (eqIdx >= 0) {
+        urlEncoded.push({ key: val.substring(0, eqIdx), value: val.substring(eqIdx + 1), enabled: true });
+      } else {
+        urlEncoded.push({ key: val, value: '', enabled: true });
+      }
     } else if (tok === '-b' || tok === '--cookie') {
       const val = tokens[++i] || '';
       headers.push({ key: 'Cookie', value: val });
@@ -132,22 +138,26 @@ export function parseCurl(input) {
 
   // Infer method if not set
   if (!method) {
-    method = body ? 'POST' : 'GET';
+    method = (body || urlEncoded.length > 0) ? 'POST' : 'GET';
   }
 
   // Detect body type
-  if (body) {
+  if (urlEncoded.length > 0) {
+    bodyType = 'urlencoded';
+  } else if (body) {
     const ctHeader = headers.find(h => h.key.toLowerCase() === 'content-type');
     const ct = ctHeader ? ctHeader.value.toLowerCase() : '';
 
-    if (ct.includes('application/json') || isJsonLike(body)) {
+    if (ct.includes('application/x-www-form-urlencoded')) {
+      bodyType = 'urlencoded';
+    } else if (ct.includes('application/json') || isJsonLike(body)) {
       bodyType = 'json';
     } else {
       bodyType = 'raw';
     }
   }
 
-  return { method, url, headers, body, bodyType };
+  return { method, url, headers, body, bodyType, urlEncoded };
 }
 
 function isJsonLike(s) {

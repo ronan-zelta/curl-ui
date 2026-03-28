@@ -91,6 +91,9 @@
       headers,
       body: parsed.body,
       bodyType: parsed.bodyType,
+      ...(parsed.urlEncoded.length > 0 && {
+        urlEncoded: [...parsed.urlEncoded, { key: '', value: '', enabled: true }],
+      }),
     };
 
     tabStore.updateTab(tab.id, updates);
