@@ -1,5 +1,17 @@
 package main
 
+import (
+	"context"
+	"sync"
+)
+
+type App struct {
+	ctx     context.Context
+	mu      sync.Mutex
+	cancel  context.CancelFunc
+	history *History
+}
+
 type BodyType string
 
 const (
@@ -26,6 +38,17 @@ type RequestPayload struct {
 	FormData   []KeyValue        `json:"formData"`
 	URLEncoded []KeyValue        `json:"urlEncoded"`
 	BinaryPath string            `json:"binaryPath"`
+}
+
+type HistoryEntry struct {
+	ID        string `json:"id"`
+	Timestamp int64  `json:"timestamp"`
+	Method    string `json:"method"`
+	URL       string `json:"url"`
+	Headers   string `json:"headers"`
+	Body      string `json:"body"`
+	BodyType  string `json:"bodyType"`
+	Params    string `json:"params"`
 }
 
 type ResponsePayload struct {

@@ -12,20 +12,15 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-type App struct {
-	ctx    context.Context
-	mu     sync.Mutex
-	cancel context.CancelFunc
-}
-
 func NewApp() *App {
-	return &App{}
+	return &App{
+		history: newHistoryOrLog(),
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -183,13 +178,22 @@ func (a *App) SendRequest(req RequestPayload) (ResponsePayload, error) {
 		bodyStr = string(body)
 	}
 
-	return ResponsePayload{
+	result := ResponsePayload{
 		StatusCode: resp.StatusCode,
 		StatusText: resp.Status,
 		Headers:    headers,
 		Body:       bodyStr,
 		DurationMs: duration.Milliseconds(),
-	}, nil
+	}
+
+	if a.history != nil {
+		if err := a.history.Save(req); err != nil {
+			// Non-fatal — log but don't fail the request
+			fmt.Printf("warning: failed to save history: %v\n", err)
+		}
+	}
+
+	return result, nil
 }
 
 func (a *App) CancelRequest() {
@@ -198,4 +202,14 @@ func (a *App) CancelRequest() {
 	if a.cancel != nil {
 		a.cancel()
 	}
+}
+
+func (a *App) SearchHistory(query string) ([]HistoryEntry, error) {
+	if a.history == nil {
+		return nil, nil
+	}
+	if query == "" {
+		return a.history.GetRecent(100)
+	}
+	return a.history.Search(query)
 }
