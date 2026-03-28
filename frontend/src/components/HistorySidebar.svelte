@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { SearchHistory } from '../../wailsjs/go/main/App.js';
+  import { getMethodColor } from '../lib/methodColors.js';
 
   const dispatch = createEventDispatcher();
 
@@ -36,13 +37,6 @@
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
 
-  function getMethodColor(method) {
-    const colors = {
-      GET: '#61affe', POST: '#49cc90', PUT: '#fca130',
-      PATCH: '#e8c438', DELETE: '#f93e3e', HEAD: '#9012fe', OPTIONS: '#0d5aa7',
-    };
-    return colors[method] || '#888';
-  }
 </script>
 
 <div class="container">

@@ -1,5 +1,6 @@
 <script>
   import { activeTab } from '../stores/tabs.js';
+  import { getMethodColor } from '../lib/methodColors.js';
 
   $: tab = $activeTab;
   $: response = tab ? tab.response : null;

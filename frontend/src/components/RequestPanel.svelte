@@ -2,6 +2,7 @@
   import { tabStore, activeTab } from '../stores/tabs.js';
   import { SendRequest, CancelRequest, PickFile } from '../../wailsjs/go/main/App.js';
   import { parseCurl } from '../lib/curlparser.js';
+  import { getMethodColor } from '../lib/methodColors.js';
   import HeadersEditor from './HeadersEditor.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import KeyValueEditor from './KeyValueEditor.svelte';
@@ -215,18 +216,6 @@
     setTimeout(() => { curlCopyText = 'Copy as cURL'; }, 1500);
   }
 
-  function getMethodColor(method) {
-    const colors = {
-      GET: '#61affe',
-      POST: '#49cc90',
-      PUT: '#fca130',
-      PATCH: '#e8c438',
-      DELETE: '#f93e3e',
-      HEAD: '#9012fe',
-      OPTIONS: '#0d5aa7',
-    };
-    return colors[method] || '#888';
-  }
 </script>
 
 {#if tab}
