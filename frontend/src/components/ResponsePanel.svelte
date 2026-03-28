@@ -72,7 +72,12 @@
       <button class="toolbar-btn" class:active={showHeaders} on:click={() => showHeaders = !showHeaders}>
         Headers ({Object.keys(response.headers).length})
       </button>
-      <button class="toolbar-btn copy-btn" on:click={copyBody}>{copyText}</button>
+      <button class="toolbar-btn copy-btn" on:click={copyBody} title="Copy response body">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+        </svg>
+      </button>
     </div>
 
     {#if showHeaders}
@@ -142,9 +147,9 @@
     cursor: pointer;
     font-family: inherit;
   }
-  .toolbar-btn:hover { color: #ccc; border-color: #3a3a4a; }
+  .toolbar-btn:hover { color: #ccc; background: #22222e; }
   .toolbar-btn.active { color: #e0e0e0; border-color: #7c6fe0; }
-  .copy-btn { margin-left: auto; }
+  .copy-btn { margin-left: auto; background: none; border: none; padding: 4px 6px; display: flex; align-items: center; }
   .response-headers {
     padding: 8px 16px;
     border-bottom: 1px solid #2a2a3a;

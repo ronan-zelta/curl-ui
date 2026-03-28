@@ -182,8 +182,19 @@
     </button>
     <button class="section-tab" class:active={activeSection === 'body'} on:click={() => activeSection = 'body'}>Body</button>
     <div class="section-actions">
-      <button class="action-btn" on:click={prettyPrint} title="Format JSON body">Pretty Print</button>
-      <button class="action-btn" on:click={copyAsCurl} title="Copy request as cURL command">{curlCopyText}</button>
+      <button class="action-btn" on:click={prettyPrint} title="Format JSON body">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/>
+          <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>
+        </svg>
+      </button>
+      <button class="action-btn" on:click={copyAsCurl} title="Copy request as cURL command">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m18 16 4-4-4-4"/>
+          <path d="m6 8-4 4 4 4"/>
+          <path d="m14.5 4-5 16"/>
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -304,17 +315,16 @@
     align-items: center;
   }
   .action-btn {
-    background: #1a1a24;
-    border: 1px solid #2a2a3a;
+    background: none;
+    border: none;
     border-radius: 4px;
     color: #888;
-    padding: 4px 10px;
-    font-size: 11px;
+    padding: 4px 6px;
     cursor: pointer;
-    font-family: inherit;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
   }
-  .action-btn:hover { color: #ccc; border-color: #3a3a4a; }
+  .action-btn:hover { color: #ccc; background: #22222e; }
   .badge {
     background: #7c6fe0;
     color: #fff;
