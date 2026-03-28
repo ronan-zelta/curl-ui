@@ -182,17 +182,12 @@
   .workspace.dragging { cursor: row-resize; user-select: none; }
   .pane { display: flex; flex-direction: column; overflow: hidden; }
   .divider {
-    height: 6px;
-    background: #1a1a24;
-    border-top: 1px solid #2a2a3a;
-    border-bottom: 1px solid #2a2a3a;
+    height: 3px;
+    background: #2a2a3a;
     cursor: row-resize;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     flex-shrink: 0;
+    transition: background 0.1s;
   }
-  .divider:hover, .workspace.dragging .divider { background: #22222e; }
-  .divider-handle { width: 40px; height: 2px; background: #3a3a4a; border-radius: 1px; }
-  .divider:hover .divider-handle, .workspace.dragging .divider-handle { background: #7c6fe0; }
+  .divider:hover, .workspace.dragging .divider { background: #7c6fe055; }
+  .divider-handle { display: none; }
 </style>

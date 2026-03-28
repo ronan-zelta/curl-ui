@@ -58,11 +58,12 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 4px;
+    width: 3px;
     height: 100%;
     cursor: col-resize;
+    transition: background 0.1s;
   }
-  .drag-handle:hover {
-    background: rgba(124, 111, 224, 0.5);
+  .drag-handle:hover, .sidebar.dragging .drag-handle {
+    background: #7c6fe055;
   }
 </style>
