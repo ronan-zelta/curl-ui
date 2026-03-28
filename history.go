@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const maxBodyBytes = 20 * 1024 // 20KB
@@ -30,7 +30,7 @@ func NewHistory() (*History, error) {
 		return nil, fmt.Errorf("could not create history dir: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", filepath.Join(dir, "history.db"))
+	db, err := sql.Open("sqlite3", filepath.Join(dir, "history.db"))
 	if err != nil {
 		return nil, fmt.Errorf("could not open history db: %w", err)
 	}
