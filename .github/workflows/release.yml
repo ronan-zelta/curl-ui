@@ -78,11 +78,10 @@ jobs:
         with:
           merge-multiple: true
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest
-          name: Latest
-          generate_release_notes: true
-          prerelease: false
-          files: httpclient-*
+      - name: Update latest release
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest --title "Latest" --generate-notes httpclient-*
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
