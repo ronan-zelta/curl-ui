@@ -1,22 +1,22 @@
 <script>
   import { tabStore, activeTab } from '../stores/tabs.js';
   import { SendRequest, CancelRequest, PickFile } from '../../wailsjs/go/main/App.js';
+  import { main } from '../../wailsjs/go/models';
   import { parseCurl } from '../lib/curlparser.js';
+  import { getMethodColor } from '../lib/methodColors.js';
   import HeadersEditor from './HeadersEditor.svelte';
   import CodeEditor from './CodeEditor.svelte';
   import KeyValueEditor from './KeyValueEditor.svelte';
 
   $: tab = $activeTab;
+  $: paramCount = tab?.params.filter(p => p.key.trim()).length ?? 0;
+  $: headerCount = tab?.headers.filter(h => h.key.trim()).length ?? 0;
 
   let activeSection = 'params';
+  let syncingParams = false;
+  let curlCopyText = 'Copy as cURL';
 
   const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
-
-  let syncingParams = false;
-
-  function setMethod(method) {
-    tabStore.updateTab(tab.id, { method });
-  }
 
   function setUrl(e) {
     const url = e.target.value;
@@ -31,16 +31,9 @@
       const fullUrl = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
       const parsed = new URL(fullUrl);
       const params = [];
-      parsed.searchParams.forEach((value, key) => {
-        params.push({ key, value, enabled: true });
-      });
-      if (params.length === 0) {
-        params.push({ key: '', value: '', enabled: true });
-      }
-      tabStore.updateTab(tab.id, { params });
-    } catch {
-      // invalid URL, leave params as-is
-    }
+      parsed.searchParams.forEach((value, key) => params.push({ key, value, enabled: true }));
+      tabStore.updateTab(tab.id, { params: params.length ? params : [{ key: '', value: '', enabled: true }] });
+    } catch {}
     syncingParams = false;
   }
 
@@ -51,23 +44,14 @@
       const raw = tab.url || '';
       const fullUrl = raw.startsWith('http') ? raw : 'https://' + raw;
       const parsed = new URL(fullUrl);
-      // Clear existing params
-      const keys = [...parsed.searchParams.keys()];
-      keys.forEach(k => parsed.searchParams.delete(k));
-      // Add enabled params
+      [...parsed.searchParams.keys()].forEach(k => parsed.searchParams.delete(k));
       for (const p of params) {
-        if (p.enabled && p.key.trim()) {
-          parsed.searchParams.append(p.key, p.value);
-        }
+        if (p.enabled && p.key.trim()) parsed.searchParams.append(p.key, p.value);
       }
-      // Reconstruct URL preserving original scheme
       let newUrl = parsed.toString();
-      if (!raw.startsWith('http')) {
-        newUrl = newUrl.replace(/^https?:\/\//, '');
-      }
+      if (!raw.startsWith('http')) newUrl = newUrl.replace(/^https?:\/\//, '');
       tabStore.updateTab(tab.id, { url: newUrl, params });
     } catch {
-      // invalid URL, just update params
       tabStore.updateTab(tab.id, { params });
     }
     syncingParams = false;
@@ -76,116 +60,64 @@
   function handlePaste(e) {
     const text = e.clipboardData.getData('text').trim();
     if (!text.match(/^\s*curl\s/i)) return;
-
     e.preventDefault();
     const parsed = parseCurl(text);
     if (!parsed) return;
-
-    const headers = parsed.headers.length > 0
-      ? parsed.headers.map(h => ({ ...h, enabled: true }))
-      : [{ key: '', value: '', enabled: true }];
-
-    const updates = {
+    tabStore.updateTab(tab.id, {
       method: parsed.method,
       url: parsed.url,
-      headers,
+      headers: parsed.headers.length > 0
+        ? parsed.headers.map(h => ({ ...h, enabled: true }))
+        : [{ key: '', value: '', enabled: true }],
       body: parsed.body,
       bodyType: parsed.bodyType,
-      ...(parsed.urlEncoded.length > 0 && {
-        urlEncoded: [...parsed.urlEncoded, { key: '', value: '', enabled: true }],
-      }),
-    };
-
-    tabStore.updateTab(tab.id, updates);
+    });
   }
 
   async function pickFile() {
     try {
       const path = await PickFile();
-      if (path) {
-        tabStore.updateTab(tab.id, { binaryPath: path });
-      }
-    } catch {
-      // user cancelled
-    }
-  }
-
-  function setBodyType(type) {
-    tabStore.updateTab(tab.id, { bodyType: type });
-  }
-
-  function setBody(value) {
-    tabStore.updateTab(tab.id, { body: value });
+      if (path) tabStore.updateTab(tab.id, { binaryPath: path });
+    } catch {}
   }
 
   async function sendRequest() {
     if (!tab || tab.loading) return;
-
-    const enabledHeaders = tab.headers
-      .filter(h => h.enabled && h.key.trim())
-      .reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {});
-
-    const payload = {
-      method: tab.method,
-      url: tab.url,
-      headers: enabledHeaders,
-      body: (tab.bodyType === 'json' || tab.bodyType === 'raw') ? tab.body : '',
-      bodyType: tab.bodyType,
-      formData: tab.bodyType === 'form-data' ? tab.formData : [],
-      urlEncoded: tab.bodyType === 'urlencoded' ? tab.urlEncoded : [],
-      binaryPath: tab.bodyType === 'binary' ? tab.binaryPath : '',
-    };
-
     tabStore.updateTab(tab.id, { loading: true, error: null, response: null });
-
     try {
-      const response = await SendRequest(payload);
+      const response = await SendRequest(main.RequestPayload.createFrom({
+        method: tab.method,
+        url: tab.url,
+        headers: tab.headers.filter(h => h.enabled && h.key.trim()).reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {}),
+        body: tab.body,
+        bodyType: tab.bodyType,
+        formData: tab.formData,
+        urlEncoded: tab.urlEncoded,
+        binaryPath: tab.binaryPath,
+      }));
       tabStore.updateTab(tab.id, { response, loading: false });
     } catch (err) {
-      tabStore.updateTab(tab.id, {
-        error: typeof err === 'string' ? err : err.message || 'Request failed',
-        loading: false,
-      });
+      tabStore.updateTab(tab.id, { error: typeof err === 'string' ? err : err.message || 'Request failed', loading: false });
     }
   }
-
-  function cancelRequest() {
-    CancelRequest();
-    tabStore.updateTab(tab.id, { loading: false, error: 'Request cancelled' });
-  }
-
-  function handleUrlKeydown(e) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      sendRequest();
-    }
-  }
-
-  let curlCopyText = 'Copy as cURL';
 
   function prettyPrint() {
     if (!tab || tab.bodyType !== 'json' || !tab.body.trim()) return;
     try {
-      const formatted = JSON.stringify(JSON.parse(tab.body), null, 4);
-      tabStore.updateTab(tab.id, { body: formatted });
-    } catch {
-      // invalid JSON, do nothing
-    }
+      tabStore.updateTab(tab.id, { body: JSON.stringify(JSON.parse(tab.body), null, 4) });
+    } catch {}
   }
 
   function copyAsCurl() {
     if (!tab) return;
     const url = tab.url.startsWith('http') ? tab.url : 'https://' + tab.url;
-    let parts = [`curl -X ${tab.method}`];
-
     const enabledHeaders = tab.headers.filter(h => h.enabled && h.key.trim());
-    for (const h of enabledHeaders) {
-      parts.push(`-H '${h.key}: ${h.value}'`);
-    }
+    const parts = [`curl -X ${tab.method}`];
+
+    for (const h of enabledHeaders) parts.push(`-H '${h.key}: ${h.value}'`);
 
     if (tab.bodyType === 'json' && tab.body.trim()) {
-      if (!enabledHeaders.some(h => h.key.toLowerCase() === 'content-type')) {
-        parts.push("-H 'Content-Type: application/json'");
-      }
+      if (!enabledHeaders.some(h => h.key.toLowerCase() === 'content-type')) parts.push("-H 'Content-Type: application/json'");
       parts.push(`-d '${tab.body.replace(/'/g, "'\\''")}'`);
     } else if (tab.bodyType === 'raw' && tab.body.trim()) {
       parts.push(`-d '${tab.body.replace(/'/g, "'\\''")}'`);
@@ -194,14 +126,9 @@
         parts.push(`-F '${kv.key}=${kv.value.replace(/'/g, "'\\''")}'`);
       }
     } else if (tab.bodyType === 'urlencoded') {
-      const pairs = tab.urlEncoded
-        .filter(f => f.enabled && f.key.trim())
-        .map(kv => `${encodeURIComponent(kv.key)}=${encodeURIComponent(kv.value)}`)
-        .join('&');
+      const pairs = tab.urlEncoded.filter(f => f.enabled && f.key.trim()).map(kv => `${encodeURIComponent(kv.key)}=${encodeURIComponent(kv.value)}`).join('&');
       if (pairs) {
-        if (!enabledHeaders.some(h => h.key.toLowerCase() === 'content-type')) {
-          parts.push("-H 'Content-Type: application/x-www-form-urlencoded'");
-        }
+        if (!enabledHeaders.some(h => h.key.toLowerCase() === 'content-type')) parts.push("-H 'Content-Type: application/x-www-form-urlencoded'");
         parts.push(`-d '${pairs}'`);
       }
     } else if (tab.bodyType === 'binary' && tab.binaryPath) {
@@ -209,23 +136,9 @@
     }
 
     parts.push(`'${url}'`);
-    const cmd = parts.join(' \\\n    ');
-    navigator.clipboard.writeText(cmd);
+    navigator.clipboard.writeText(parts.join(' \\\n    '));
     curlCopyText = 'Copied!';
     setTimeout(() => { curlCopyText = 'Copy as cURL'; }, 1500);
-  }
-
-  function getMethodColor(method) {
-    const colors = {
-      GET: '#61affe',
-      POST: '#49cc90',
-      PUT: '#fca130',
-      PATCH: '#e8c438',
-      DELETE: '#f93e3e',
-      HEAD: '#9012fe',
-      OPTIONS: '#0d5aa7',
-    };
-    return colors[method] || '#888';
   }
 </script>
 
@@ -234,12 +147,11 @@
   <div class="url-bar">
     <select
       class="method-select"
-      value={tab.method}
-      on:change={(e) => setMethod(e.target.value)}
+      on:change={(e) => tabStore.updateTab(tab.id, { method: e.currentTarget.value })}
       style="color: {getMethodColor(tab.method)}"
     >
       {#each methods as method}
-        <option value={method} style="color: {getMethodColor(method)}">{method}</option>
+        <option value={method} selected={method === tab.method} style="color: {getMethodColor(method)}">{method}</option>
       {/each}
     </select>
     <input
@@ -249,42 +161,26 @@
       placeholder="Enter URL..."
       value={tab.url}
       on:input={setUrl}
-      on:keydown={handleUrlKeydown}
+      on:keydown={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && sendRequest()}
       on:paste={handlePaste}
     />
     {#if tab.loading}
-      <button class="send-btn cancel" on:click={cancelRequest}>Cancel</button>
+      <button class="send-btn cancel" on:click={() => { CancelRequest(); tabStore.updateTab(tab.id, { loading: false, error: 'Request cancelled' }); }}>Cancel</button>
     {:else}
       <button class="send-btn" on:click={sendRequest}>Send</button>
     {/if}
   </div>
 
   <div class="section-tabs">
-    <button
-      class="section-tab"
-      class:active={activeSection === 'params'}
-      on:click={() => activeSection = 'params'}
-    >
+    <button class="section-tab" class:active={activeSection === 'params'} on:click={() => activeSection = 'params'}>
       Params
-      {#if tab.params.filter(p => p.key.trim()).length > 0}
-        <span class="badge">{tab.params.filter(p => p.key.trim()).length}</span>
-      {/if}
+      {#if paramCount > 0}<span class="badge">{paramCount}</span>{/if}
     </button>
-    <button
-      class="section-tab"
-      class:active={activeSection === 'headers'}
-      on:click={() => activeSection = 'headers'}
-    >
+    <button class="section-tab" class:active={activeSection === 'headers'} on:click={() => activeSection = 'headers'}>
       Headers
-      {#if tab.headers.filter(h => h.key.trim()).length > 0}
-        <span class="badge">{tab.headers.filter(h => h.key.trim()).length}</span>
-      {/if}
+      {#if headerCount > 0}<span class="badge">{headerCount}</span>{/if}
     </button>
-    <button
-      class="section-tab"
-      class:active={activeSection === 'body'}
-      on:click={() => activeSection = 'body'}
-    >Body</button>
+    <button class="section-tab" class:active={activeSection === 'body'} on:click={() => activeSection = 'body'}>Body</button>
     <div class="section-actions">
       <button class="action-btn" on:click={prettyPrint} title="Format JSON body">Pretty Print</button>
       <button class="action-btn" on:click={copyAsCurl} title="Copy request as cURL command">{curlCopyText}</button>
@@ -293,69 +189,34 @@
 
   {#if activeSection === 'body'}
     <div class="body-type-tabs">
-      <button class:active={tab.bodyType === 'none'} on:click={() => setBodyType('none')}>None</button>
-      <button class:active={tab.bodyType === 'json'} on:click={() => setBodyType('json')}>JSON</button>
-      <button class:active={tab.bodyType === 'raw'} on:click={() => setBodyType('raw')}>Raw</button>
-      <button class:active={tab.bodyType === 'form-data'} on:click={() => setBodyType('form-data')}>Form Data</button>
-      <button class:active={tab.bodyType === 'urlencoded'} on:click={() => setBodyType('urlencoded')}>URL Encoded</button>
-      <button class:active={tab.bodyType === 'binary'} on:click={() => setBodyType('binary')}>Binary</button>
+      {#each ['none', 'json', 'raw', 'form-data', 'urlencoded', 'binary'] as type}
+        <button class:active={tab.bodyType === type} on:click={() => tabStore.updateTab(tab.id, { bodyType: type })}>
+          {type === 'urlencoded' ? 'URL Encoded' : type === 'form-data' ? 'Form Data' : type.charAt(0).toUpperCase() + type.slice(1)}
+        </button>
+      {/each}
     </div>
   {/if}
 
   <div class="section-content">
     {#if activeSection === 'params'}
-      <KeyValueEditor
-        items={tab.params}
-        keyPlaceholder="Parameter"
-        valuePlaceholder="Value"
-        on:change={(e) => syncUrlFromParams(e.detail)}
-      />
+      <KeyValueEditor items={tab.params} keyPlaceholder="Parameter" valuePlaceholder="Value" on:change={(e) => syncUrlFromParams(e.detail)} />
     {:else if activeSection === 'headers'}
       <HeadersEditor />
+    {:else if tab.bodyType === 'json'}
+      <CodeEditor value={tab.body} lang="json" placeholder={'{"key": "value"}'} on:input={(e) => tabStore.updateTab(tab.id, { body: e.detail })} />
+    {:else if tab.bodyType === 'raw'}
+      <textarea class="body-textarea" placeholder="Request body..." value={tab.body} on:input={(e) => tabStore.updateTab(tab.id, { body: e.target.value })} spellcheck="false"></textarea>
+    {:else if tab.bodyType === 'form-data'}
+      <KeyValueEditor items={tab.formData} keyPlaceholder="Key" valuePlaceholder="Value" on:change={(e) => tabStore.updateTab(tab.id, { formData: e.detail })} />
+    {:else if tab.bodyType === 'urlencoded'}
+      <KeyValueEditor items={tab.urlEncoded} keyPlaceholder="Key" valuePlaceholder="Value" on:change={(e) => tabStore.updateTab(tab.id, { urlEncoded: e.detail })} />
+    {:else if tab.bodyType === 'binary'}
+      <div class="binary-picker">
+        <input class="binary-path" type="text" placeholder="/path/to/file" value={tab.binaryPath} on:input={(e) => tabStore.updateTab(tab.id, { binaryPath: e.target.value })} />
+        <button class="binary-browse" on:click={pickFile}>Browse...</button>
+      </div>
     {:else}
-      {#if tab.bodyType === 'json'}
-        <CodeEditor
-          value={tab.body}
-          lang="json"
-          placeholder={'{"key": "value"}'}
-          on:input={(e) => setBody(e.detail)}
-        />
-      {:else if tab.bodyType === 'raw'}
-        <textarea
-          class="body-textarea"
-          placeholder="Request body..."
-          value={tab.body}
-          on:input={(e) => setBody(e.target.value)}
-          spellcheck="false"
-        ></textarea>
-      {:else if tab.bodyType === 'form-data'}
-        <KeyValueEditor
-          items={tab.formData}
-          keyPlaceholder="Key"
-          valuePlaceholder="Value"
-          on:change={(e) => tabStore.updateTab(tab.id, { formData: e.detail })}
-        />
-      {:else if tab.bodyType === 'urlencoded'}
-        <KeyValueEditor
-          items={tab.urlEncoded}
-          keyPlaceholder="Key"
-          valuePlaceholder="Value"
-          on:change={(e) => tabStore.updateTab(tab.id, { urlEncoded: e.detail })}
-        />
-      {:else if tab.bodyType === 'binary'}
-        <div class="binary-picker">
-          <input
-            class="binary-path"
-            type="text"
-            placeholder="/path/to/file"
-            value={tab.binaryPath}
-            on:input={(e) => tabStore.updateTab(tab.id, { binaryPath: e.target.value })}
-          />
-          <button class="binary-browse" on:click={pickFile}>Browse...</button>
-        </div>
-      {:else}
-        <div class="body-empty">This request does not have a body</div>
-      {/if}
+      <div class="body-empty">This request does not have a body</div>
     {/if}
   </div>
 </div>
@@ -365,7 +226,6 @@
   .request-panel {
     display: flex;
     flex-direction: column;
-    gap: 0;
     flex: 1;
     overflow: hidden;
   }
@@ -379,8 +239,7 @@
     background: #1a1a24;
     border: 1px solid #2a2a3a;
     border-radius: 6px;
-    color: #61affe;
-    padding: 8px 8px;
+    padding: 8px;
     font-size: 13px;
     font-weight: 700;
     font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -507,7 +366,6 @@
     min-height: 0;
     outline: none;
     line-height: 1.5;
-    tab-size: 2;
   }
   .body-textarea:focus { border-color: #7c6fe0; }
   .body-textarea::placeholder { color: #444; }

@@ -2,9 +2,12 @@
   import { activeTab } from '../stores/tabs.js';
 
   $: tab = $activeTab;
-  $: response = tab ? tab.response : null;
-  $: error = tab ? tab.error : null;
-  $: loading = tab ? tab.loading : false;
+  $: response = tab?.response ?? null;
+  $: error = tab?.error ?? null;
+  $: loading = tab?.loading ?? false;
+
+  $: isJson = isJsonContent(response?.headers);
+  $: formattedBody = formatBody(response?.body, response?.headers);
 
   let showHeaders = false;
   let copyText = 'Copy';
@@ -16,45 +19,32 @@
     return '#f93e3e';
   }
 
+  function isJsonContent(headers) {
+    const ct = headers?.['Content-Type'] || '';
+    return ct.includes('application/json') || ct.includes('+json');
+  }
+
   function formatBody(body, headers) {
     if (!body) return '';
-    const ct = (headers && headers['Content-Type']) || '';
-    if (ct.includes('application/json') || ct.includes('+json')) {
-      try {
-        return JSON.stringify(JSON.parse(body), null, 4);
-      } catch {
-        return body;
-      }
+    if (isJsonContent(headers)) {
+      try { return JSON.stringify(JSON.parse(body), null, 4); } catch {}
     }
     return body;
   }
 
-  function isJson(headers) {
-    const ct = (headers && headers['Content-Type']) || '';
-    return ct.includes('application/json') || ct.includes('+json');
-  }
-
   function syntaxHighlight(json) {
     return json
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?)/g, (match) => {
-        let cls = 'json-string';
-        if (match.endsWith(':')) {
-          cls = 'json-key';
-        }
-        return `<span class="${cls}">${match}</span>`;
-      })
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?)/g, (match) =>
+        `<span class="${match.endsWith(':') ? 'json-key' : 'json-string'}">${match}</span>`)
       .replace(/\b(true|false)\b/g, '<span class="json-boolean">$1</span>')
       .replace(/\b(null)\b/g, '<span class="json-null">$1</span>')
       .replace(/\b(-?\d+\.?\d*([eE][+-]?\d+)?)\b/g, '<span class="json-number">$1</span>');
   }
 
   async function copyBody() {
-    if (!response) return;
-    const body = formatBody(response.body, response.headers);
-    await navigator.clipboard.writeText(body);
+    if (!formattedBody) return;
+    await navigator.clipboard.writeText(formattedBody);
     copyText = 'Copied!';
     setTimeout(() => { copyText = 'Copy'; }, 1500);
   }
@@ -62,30 +52,24 @@
 
 <div class="response-panel">
   {#if loading}
-    <div class="response-loading">
+    <div class="state-view">
       <div class="spinner"></div>
       <span>Sending request...</span>
     </div>
   {:else if error}
-    <div class="response-error">
+    <div class="state-view error">
       <span class="error-icon">!</span>
       <span>{error}</span>
     </div>
   {:else if response}
     <div class="status-bar">
-      <span class="status-code" style="color: {getStatusColor(response.statusCode)}">
-        {response.statusCode}
-      </span>
+      <span class="status-code" style="color: {getStatusColor(response.statusCode)}">{response.statusCode}</span>
       <span class="status-text">{response.statusText}</span>
       <span class="status-time">{response.durationMs} ms</span>
     </div>
 
     <div class="response-toolbar">
-      <button
-        class="toolbar-btn"
-        class:active={showHeaders}
-        on:click={() => showHeaders = !showHeaders}
-      >
+      <button class="toolbar-btn" class:active={showHeaders} on:click={() => showHeaders = !showHeaders}>
         Headers ({Object.keys(response.headers).length})
       </button>
       <button class="toolbar-btn copy-btn" on:click={copyBody}>{copyText}</button>
@@ -103,16 +87,11 @@
     {/if}
 
     <div class="response-body">
-      {#if isJson(response.headers)}
-        <pre class="json-body">{@html syntaxHighlight(formatBody(response.body, response.headers))}</pre>
+      {#if isJson}
+        <pre>{@html syntaxHighlight(formattedBody)}</pre>
       {:else}
-        <pre class="raw-body">{formatBody(response.body, response.headers)}</pre>
+        <pre>{formattedBody}</pre>
       {/if}
-    </div>
-  {:else}
-    <div class="response-empty">
-      <span class="empty-icon">&#8593;</span>
-      <span>Send a request to see the response</span>
     </div>
   {/if}
 </div>
@@ -139,10 +118,7 @@
     font-size: 14px;
     font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   }
-  .status-text {
-    color: #888;
-    font-size: 13px;
-  }
+  .status-text { color: #888; font-size: 13px; }
   .status-time {
     margin-left: auto;
     color: #888;
@@ -204,8 +180,7 @@
   :global(.json-number) { color: #fca130; }
   :global(.json-boolean) { color: #61affe; }
   :global(.json-null) { color: #888; }
-
-  .response-loading, .response-empty, .response-error {
+  .state-view {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -215,7 +190,7 @@
     color: #555;
     font-size: 14px;
   }
-  .response-error { color: #e06f6f; }
+  .state-view.error { color: #e06f6f; }
   .error-icon {
     width: 32px;
     height: 32px;
@@ -227,10 +202,6 @@
     font-weight: bold;
     font-size: 18px;
   }
-  .empty-icon {
-    font-size: 28px;
-    opacity: 0.3;
-  }
   .spinner {
     width: 24px;
     height: 24px;
@@ -239,7 +210,5 @@
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
