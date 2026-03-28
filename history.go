@@ -95,16 +95,7 @@ func (h *History) Search(query string) ([]HistoryEntry, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
-	var entries []HistoryEntry
-	for rows.Next() {
-		var e HistoryEntry
-		if err := rows.Scan(&e.ID, &e.Timestamp, &e.Method, &e.URL, &e.Headers, &e.Body, &e.BodyType, &e.Params); err != nil {
-			return nil, err
-		}
-		entries = append(entries, e)
-	}
-	return entries, rows.Err()
+	return scanRows(rows)
 }
 
 func (h *History) GetRecent(limit int) ([]HistoryEntry, error) {
@@ -119,7 +110,10 @@ func (h *History) GetRecent(limit int) ([]HistoryEntry, error) {
 		return nil, err
 	}
 	defer rows.Close()
+	return scanRows(rows)
+}
 
+func scanRows(rows *sql.Rows) ([]HistoryEntry, error) {
 	var entries []HistoryEntry
 	for rows.Next() {
 		var e HistoryEntry
