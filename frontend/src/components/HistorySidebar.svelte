@@ -8,8 +8,6 @@
 
   let query = '';
   let results = [];
-  let loading = false;
-  let searchTimeout;
 
   onMount(() => {
     if (open) load();
@@ -18,20 +16,15 @@
   $: if (open) load();
 
   async function load() {
-    loading = true;
     try {
-      results = await SearchHistory(query);
-      if (!results) results = [];
+      results = await SearchHistory(query) ?? [];
     } catch (e) {
       results = [];
-    } finally {
-      loading = false;
     }
   }
 
   function onInput() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(load, 200);
+    load();
   }
 
   function select(entry) {
@@ -83,9 +76,7 @@
       />
     </div>
     <div class="results">
-      {#if loading}
-        <div class="state-msg">Loading...</div>
-      {:else if results.length === 0}
+      {#if results.length === 0}
         <div class="state-msg">{query ? 'No results' : 'No history yet'}</div>
       {:else}
         {#each results as entry (entry.id)}
