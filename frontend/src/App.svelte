@@ -4,6 +4,7 @@
   import TabBar from './components/TabBar.svelte';
   import RequestPanel from './components/RequestPanel.svelte';
   import ResponsePanel from './components/ResponsePanel.svelte';
+  import Sidebar from './components/Sidebar.svelte';
   import HistorySidebar from './components/HistorySidebar.svelte';
 
   let splitPercent = 45;
@@ -105,11 +106,9 @@
       </button>
     </div>
 
-    <HistorySidebar
-      open={historyOpen}
-      on:close={() => historyOpen = false}
-      on:select={loadHistoryEntry}
-    />
+    <Sidebar open={historyOpen}>
+      <HistorySidebar on:select={loadHistoryEntry} />
+    </Sidebar>
 
     <div class="workspace" bind:this={workspaceEl} class:dragging>
       <div class="pane" style="height: {splitPercent}%">
