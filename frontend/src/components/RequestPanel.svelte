@@ -5,7 +5,7 @@
   import { parseCurl } from '../lib/curlparser.js';
   import { getMethodColor } from '../lib/methodColors.js';
   import HeadersEditor from './HeadersEditor.svelte';
-  import CodeEditor from './CodeEditor.svelte';
+  import BodyViewer from './BodyViewer.svelte';
   import KeyValueEditor from './KeyValueEditor.svelte';
 
   $: tab = $activeTab;
@@ -214,7 +214,7 @@
     {:else if activeSection === 'headers'}
       <HeadersEditor />
     {:else if tab.bodyType === 'json'}
-      <CodeEditor value={tab.body} lang="json" placeholder={'{"key": "value"}'} on:input={(e) => tabStore.updateTab(tab.id, { body: e.detail })} />
+      <BodyViewer value={tab.body} lang="json" placeholder={'{"key": "value"}'} on:input={(e) => tabStore.updateTab(tab.id, { body: e.detail })} />
     {:else if tab.bodyType === 'raw'}
       <textarea class="body-textarea" placeholder="Request body..." value={tab.body} on:input={(e) => tabStore.updateTab(tab.id, { body: e.target.value })} spellcheck="false"></textarea>
     {:else if tab.bodyType === 'form-data'}

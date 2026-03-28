@@ -10,6 +10,7 @@
   export let value = '';
   export let placeholder = '';
   export let lang = 'json';
+  export let readonly = false;
 
   const dispatch = createEventDispatcher();
 
@@ -17,14 +18,17 @@
   let view;
   let updating = false;
 
-  const theme = EditorView.theme({
+  $: accent = readonly ? '#49cc90' : '#7c6fe0';
+  $: accentRgb = readonly ? '73, 204, 144' : '124, 111, 224';
+
+  $: theme = EditorView.theme({
     '&': {
       fontSize: '13px',
       height: '100%',
     },
     '.cm-content': {
       fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
-      caretColor: '#7c6fe0',
+      caretColor: accent,
     },
     '.cm-gutters': {
       background: '#1a1a24',
@@ -35,13 +39,13 @@
       background: '#22222e',
     },
     '&.cm-focused .cm-cursor': {
-      borderLeftColor: '#7c6fe0',
+      borderLeftColor: accent,
     },
     '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-      background: 'rgba(124, 111, 224, 0.25) !important',
+      background: `rgba(${accentRgb}, 0.25) !important`,
     },
     '.cm-activeLine': {
-      background: 'rgba(124, 111, 224, 0.06)',
+      background: `rgba(${accentRgb}, 0.06)`,
     },
     '.cm-scroller': {
       overflow: 'auto',
@@ -56,12 +60,19 @@
       indentUnit.of('    '),
       EditorState.tabSize.of(4),
       lineNumbers(),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged && !updating) {
-          dispatch('input', update.state.doc.toString());
-        }
-      }),
     ];
+
+    if (!readonly) {
+      extensions.push(
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged && !updating) {
+            dispatch('input', update.state.doc.toString());
+          }
+        })
+      );
+    } else {
+      extensions.push(EditorState.readOnly.of(true));
+    }
 
     if (lang === 'json') {
       extensions.push(json());
@@ -97,7 +108,7 @@
   }
 </script>
 
-<div class="editor-wrapper" bind:this={container}></div>
+<div class="editor-wrapper" bind:this={container} style="--accent: {accent}"></div>
 
 <style>
   .editor-wrapper {
@@ -112,6 +123,6 @@
     background: #1a1a24;
   }
   .editor-wrapper :global(.cm-editor.cm-focused) {
-    outline: 1px solid #7c6fe0;
+    outline: 1px solid var(--accent);
   }
 </style>

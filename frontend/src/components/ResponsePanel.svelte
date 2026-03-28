@@ -1,5 +1,6 @@
 <script>
   import { activeTab } from '../stores/tabs.js';
+  import BodyViewer from './BodyViewer.svelte';
 
   $: tab = $activeTab;
   $: response = tab?.response ?? null;
@@ -30,16 +31,6 @@
       try { return JSON.stringify(JSON.parse(body), null, 4); } catch {}
     }
     return body;
-  }
-
-  function syntaxHighlight(json) {
-    return json
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/("(\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?)/g, (match) =>
-        `<span class="${match.endsWith(':') ? 'json-key' : 'json-string'}">${match}</span>`)
-      .replace(/\b(true|false)\b/g, '<span class="json-boolean">$1</span>')
-      .replace(/\b(null)\b/g, '<span class="json-null">$1</span>')
-      .replace(/\b(-?\d+\.?\d*([eE][+-]?\d+)?)\b/g, '<span class="json-number">$1</span>');
   }
 
   async function copyBody() {
@@ -91,9 +82,9 @@
       </div>
     {/if}
 
-    <div class="response-body">
+    <div class="response-body" class:is-editor={isJson}>
       {#if isJson}
-        <pre>{@html syntaxHighlight(formattedBody)}</pre>
+        <BodyViewer value={formattedBody} lang="json" readonly={true} />
       {:else}
         <pre>{formattedBody}</pre>
       {/if}
@@ -170,6 +161,12 @@
     flex: 1;
     overflow: auto;
     padding: 12px 16px;
+    min-height: 0;
+  }
+  .response-body.is-editor {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
   }
   .response-body pre {
     margin: 0;
@@ -180,11 +177,6 @@
     line-height: 1.5;
     color: #e0e0e0;
   }
-  :global(.json-key) { color: #7c6fe0; }
-  :global(.json-string) { color: #49cc90; }
-  :global(.json-number) { color: #fca130; }
-  :global(.json-boolean) { color: #61affe; }
-  :global(.json-null) { color: #888; }
   .state-view {
     display: flex;
     flex-direction: column;
