@@ -6,7 +6,7 @@
   let dragging = false;
 
   const MIN = 160;
-  const MAX = 480;
+  const MAX = 600;
 
   function onHandleMousedown(e) {
     e.preventDefault();
